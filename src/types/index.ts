@@ -1,18 +1,36 @@
 // Tipos para AgroControl
 
-export type ProductType = 'SEMILLA' | 'FERTILIZANTE' | 'PESTICIDA';
-export type ProductState = 'LIQUIDO' | 'SOLIDO';
+export type ProductType = 'SEMILLA' | 'FERTILIZANTE' | 'PESTICIDA' | 'HERBICIDA' | 'FUNGICIDA' | 'INSECTICIDA' | 'OTRO';
+export type ProductState = 'LIQUIDO' | 'SOLIDO' | 'POLVO' | 'GRANULADO' | 'GEL';
 export type BaseUnit = 'KG' | 'G' | 'L' | 'ML';
 export type ApplicationType = 'FUMIGACION' | 'SIEMBRA';
 export type MovementType = 'ENTRADA' | 'SALIDA';
-export type ContainerType = 'BIDON' | 'SACO' | 'BOLSA' | 'TAMBOR' | 'OTRO';
+export type ContainerType = 'BIDON' | 'SACO' | 'BOLSA' | 'TAMBOR' | 'TANQUE' | 'OTRO';
 export type ContainerStatus = 'DISPONIBLE' | 'EN_USO' | 'VACIO';
+
+// Interfaces for settings
+export interface ProductTypeModel {
+  id: string;
+  name: string;
+}
+
+export interface ProductStateModel {
+  id: string;
+  name: string;
+}
+
+export interface ContainerTypeModel {
+  id: string;
+  name: string;
+}
 
 export interface Product {
   id: string;
   name: string;
-  type: ProductType;
-  state: ProductState;
+  typeId: string;
+  stateId: string;
+  type?: ProductTypeModel;
+  state?: ProductStateModel;
   baseUnit: BaseUnit;
   dosePerHectareMin?: number;
   dosePerHectareMax?: number;

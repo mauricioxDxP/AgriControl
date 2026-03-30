@@ -9,6 +9,7 @@ import StockPage from './pages/StockPage';
 import TanksPage from './pages/TanksPage';
 import TancadasPage from './pages/TancadasPage';
 import DashboardPage from './pages/DashboardPage';
+import SettingsPage from './pages/SettingsPage';
 
 function App() {
   const isOnline = useOnlineStatus();
@@ -24,6 +25,7 @@ function App() {
     { path: '/tanks', label: 'Tanques', icon: '🛢️' },
     { path: '/tancadas', label: 'Tancadas', icon: '🚿' },
     { path: '/applications', label: 'Aplicaciones', icon: '🚜' },
+    { path: '/settings', label: 'Configuración', icon: '⚙️' },
   ];
 
   return (
@@ -76,6 +78,7 @@ function App() {
           <Route path="/fields" element={<FieldsPage />} />
           <Route path="/tanks" element={<TanksPage />} />
           <Route path="/tancadas" element={<TancadasPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

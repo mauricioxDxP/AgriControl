@@ -77,7 +77,7 @@ export default function ApplicationsPage() {
       selectedField.area,
       parseFloat(dosePerHectare),
       parseFloat(concentration) || 0,
-      product.state
+      (product.state?.name || product.state) as string
     );
   };
 
@@ -392,7 +392,7 @@ export default function ApplicationsPage() {
                             placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Máx: ${product?.dosePerHectareMax || '-'}`}
                             style={{ flex: 1 }}
                           />
-                          {product?.state === 'LIQUIDO' && (
+                          {(product?.state?.name || product?.state) === 'LIQUIDO' && (
                             <input
                               type="number"
                               step="0.1"

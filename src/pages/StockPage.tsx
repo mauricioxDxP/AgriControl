@@ -110,7 +110,9 @@ export default function StockPage() {
                 </tr>
               </thead>
               <tbody>
-                {stockByProduct.map(({ product, entradas, salidas, stock, lotesCount }) => (
+                {stockByProduct.map(({ product, entradas, salidas, stock, lotesCount }) => {
+                  const typeName = product.type?.name || String(product.type || 'OTRO');
+                  return (
                   <tr 
                     key={product.id}
                     style={{ 
@@ -122,10 +124,10 @@ export default function StockPage() {
                     <td><strong>{product.name}</strong></td>
                     <td>
                       <span className={`badge ${
-                        product.type === 'SEMILLA' ? 'badge-primary' : 
-                        product.type === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
+                        typeName === 'SEMILLA' ? 'badge-primary' : 
+                        typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
                       }`}>
-                        {product.type}
+                        {typeName}
                       </span>
                     </td>
                     <td>{lotesCount}</td>
@@ -151,7 +153,8 @@ export default function StockPage() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

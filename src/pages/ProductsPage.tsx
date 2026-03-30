@@ -1,26 +1,65 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProducts } from '../hooks/useData';
-import { Product, ProductType, ProductState, BaseUnit } from '../types';
+import { Product, BaseUnit } from '../types';
+import { settingsApi } from '../services/api';
+
+interface SettingItem {
+  id: string;
+  name: string;
+}
 
 export default function ProductsPage() {
   const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  
+  // Settings data
+  const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
+  const [productStates, setProductStates] = useState<SettingItem[]>([]);
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  
   const [formData, setFormData] = useState({
     name: '',
-    type: 'SEMILLA' as ProductType,
-    state: 'SOLIDO' as ProductState,
+    typeId: '',
+    stateId: '',
     baseUnit: 'KG' as BaseUnit,
     dosePerHectareMin: '',
     dosePerHectareMax: '',
     concentration: ''
   });
 
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const [types, states] = await Promise.all([
+        settingsApi.getProductTypes(),
+        settingsApi.getProductStates()
+      ]);
+      setProductTypes(types);
+      setProductStates(states);
+      
+      // Set default values after loading
+      if (types.length > 0 && !formData.typeId) {
+        setFormData(prev => ({ ...prev, typeId: types[0].id }));
+      }
+      if (states.length > 0 && !formData.stateId) {
+        setFormData(prev => ({ ...prev, stateId: states[0].id }));
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+    setSettingsLoading(false);
+  };
+
   const resetForm = () => {
     setFormData({
       name: '',
-      type: 'SEMILLA',
-      state: 'SOLIDO',
+      typeId: productTypes[0]?.id || '',
+      stateId: productStates[0]?.id || '',
       baseUnit: 'KG',
       dosePerHectareMin: '',
       dosePerHectareMax: '',
@@ -34,8 +73,8 @@ export default function ProductsPage() {
       setEditingProduct(product);
       setFormData({
         name: product.name,
-        type: product.type,
-        state: product.state,
+        typeId: (product as any).type?.id || product.typeId || '',
+        stateId: (product as any).state?.id || product.stateId || '',
         baseUnit: product.baseUnit,
         dosePerHectareMin: product.dosePerHectareMin?.toString() || '',
         dosePerHectareMax: product.dosePerHectareMax?.toString() || '',
@@ -47,13 +86,21 @@ export default function ProductsPage() {
     setShowModal(true);
   };
 
+  const getTypeName = (product: Product) => {
+    return (product as any).type?.name || product.type || '-';
+  };
+
+  const getStateName = (product: Product) => {
+    return (product as any).state?.name || product.state || '-';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const data = {
       name: formData.name,
-      type: formData.type,
-      state: formData.state,
+      typeId: formData.typeId,
+      stateId: formData.stateId,
       baseUnit: formData.baseUnit,
       dosePerHectareMin: formData.dosePerHectareMin ? parseFloat(formData.dosePerHectareMin) : undefined,
       dosePerHectareMax: formData.dosePerHectareMax ? parseFloat(formData.dosePerHectareMax) : undefined,
@@ -76,16 +123,21 @@ export default function ProductsPage() {
     }
   };
 
-  const getTypeBadge = (type: ProductType) => {
-    const colors: Record<ProductType, string> = {
+  const getTypeBadge = (product: Product) => {
+    const typeName = getTypeName(product);
+    const colors: Record<string, string> = {
       SEMILLA: 'badge-primary',
       FERTILIZANTE: 'badge-secondary',
-      PESTICIDA: 'badge-danger'
+      PESTICIDA: 'badge-danger',
+      HERBICIDA: 'badge-warning',
+      FUNGICIDA: 'badge-info',
+      INSECTICIDA: 'badge-danger',
+      OTRO: 'badge-secondary'
     };
-    return colors[type];
+    return colors[typeName] || 'badge-secondary';
   };
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="loading">
         <div className="spinner"></div>
@@ -107,7 +159,7 @@ export default function ProductsPage() {
           <div className="empty-state">
             <div style={{ fontSize: '3rem' }}>📦</div>
             <h3>No hay productos</h3>
-            <p>Creá tu primer producto para comenzar</p>
+            <p>Registrá tu primer producto para comenzar</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
               + Crear Producto
             </button>
@@ -122,9 +174,7 @@ export default function ProductsPage() {
                 <th>Tipo</th>
                 <th>Estado</th>
                 <th>Unidad</th>
-                <th>Dosis Mín/Ha</th>
-                <th>Dosis Máx/Ha</th>
-                <th>Conc. %</th>
+                <th>Dosis/ha</th>
                 <th>Acciones</th>
               </tr>
             </thead>
@@ -133,30 +183,31 @@ export default function ProductsPage() {
                 <tr key={product.id}>
                   <td><strong>{product.name}</strong></td>
                   <td>
-                    <span className={`badge ${getTypeBadge(product.type)}`}>
-                      {product.type}
+                    <span className={`badge ${getTypeBadge(product)}`}>
+                      {getTypeName(product)}
                     </span>
                   </td>
-                  <td>{product.state}</td>
+                  <td>{getStateName(product)}</td>
                   <td>{product.baseUnit}</td>
-                  <td>{product.dosePerHectareMin || '-'}</td>
-                  <td>{product.dosePerHectareMax || '-'}</td>
-                  <td>{product.concentration || '-'}</td>
                   <td>
-                    <div className="flex gap-1">
-                      <button 
-                        className="btn btn-secondary btn-sm" 
-                        onClick={() => openModal(product)}
-                      >
-                        Editar
-                      </button>
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </div>
+                    {product.dosePerHectareMin && product.dosePerHectareMax 
+                      ? `${product.dosePerHectareMin}-${product.dosePerHectareMax}` 
+                      : '-'}
+                  </td>
+                  <td>
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => openModal(product)}
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      Editar
+                    </button>
+                    <button 
+                      className="btn btn-danger btn-sm"
+                      onClick={() => handleDelete(product.id)}
+                    >
+                      Eliminar
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -165,7 +216,7 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal de Producto */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -195,37 +246,45 @@ export default function ProductsPage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Tipo</label>
+                    <label className="form-label">Tipo *</label>
                     <select
                       className="form-select"
-                      value={formData.type}
-                      onChange={e => setFormData({ ...formData, type: e.target.value as ProductType })}
+                      value={formData.typeId}
+                      onChange={e => setFormData({ ...formData, typeId: e.target.value })}
+                      required
                     >
-                      <option value="SEMILLA">Semilla</option>
-                      <option value="FERTILIZANTE">Fertilizante</option>
-                      <option value="PESTICIDA">Pesticida</option>
+                      {productTypes.map(type => (
+                        <option key={type.id} value={type.id}>
+                          {type.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Estado</label>
+                    <label className="form-label">Estado *</label>
                     <select
                       className="form-select"
-                      value={formData.state}
-                      onChange={e => setFormData({ ...formData, state: e.target.value as ProductState })}
+                      value={formData.stateId}
+                      onChange={e => setFormData({ ...formData, stateId: e.target.value })}
+                      required
                     >
-                      <option value="SOLIDO">Sólido</option>
-                      <option value="LIQUIDO">Líquido</option>
+                      {productStates.map(state => (
+                        <option key={state.id} value={state.id}>
+                          {state.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Unidad Base</label>
+                  <label className="form-label">Unidad Base *</label>
                   <select
                     className="form-select"
                     value={formData.baseUnit}
                     onChange={e => setFormData({ ...formData, baseUnit: e.target.value as BaseUnit })}
+                    required
                   >
                     <option value="KG">Kilogramos (kg)</option>
                     <option value="G">Gramos (g)</option>
@@ -236,40 +295,37 @@ export default function ProductsPage() {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Dosis Mínima por Há</label>
+                    <label className="form-label">Dosis mínima (kg/L por ha)</label>
                     <input
                       type="number"
                       step="0.01"
                       className="form-input"
                       value={formData.dosePerHectareMin}
                       onChange={e => setFormData({ ...formData, dosePerHectareMin: e.target.value })}
-                      placeholder="Ej: 3"
                     />
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Dosis Máxima por Há</label>
+                    <label className="form-label">Dosis máxima (kg/L por ha)</label>
                     <input
                       type="number"
                       step="0.01"
                       className="form-input"
                       value={formData.dosePerHectareMax}
                       onChange={e => setFormData({ ...formData, dosePerHectareMax: e.target.value })}
-                      placeholder="Ej: 5"
                     />
                   </div>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Concentración %</label>
+                  <label className="form-label">Concentración (%)</label>
                   <input
                     type="number"
                     step="0.1"
-                    max="100"
                     className="form-input"
                     value={formData.concentration}
                     onChange={e => setFormData({ ...formData, concentration: e.target.value })}
-                    placeholder="Ej: 2.5"
+                    placeholder="Ej: 50 para 50%"
                   />
                 </div>
               </div>

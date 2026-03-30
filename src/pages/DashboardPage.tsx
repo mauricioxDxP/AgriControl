@@ -34,12 +34,13 @@ export default function DashboardPage() {
   ];
 
   // Calcular stock total por tipo de producto
-  const stockByType = products.reduce((acc, product) => {
+  const stockByType: Record<string, number> = {};
+  products.forEach(product => {
     const productLots = lots.filter(l => l.productId === product.id);
     const totalStock = productLots.reduce((sum, lot) => sum + lot.initialStock, 0);
-    acc[product.type] = (acc[product.type] || 0) + totalStock;
-    return acc;
-  }, {} as Record<string, number>);
+    const typeName = String(product.type?.name || product.type || 'OTRO');
+    stockByType[typeName] = (stockByType[typeName] || 0) + totalStock;
+  });
 
   // Aplicaciones recientes
   const recentApplications = applications.slice(0, 5);

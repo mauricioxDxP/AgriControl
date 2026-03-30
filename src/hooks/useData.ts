@@ -68,8 +68,8 @@ export function useProducts() {
     const newProduct: Product = {
       id: uuidv4(),
       name: data.name || '',
-      type: data.type || 'SEMILLA',
-      state: data.state || 'SOLIDO',
+      typeId: data.typeId || '',
+      stateId: data.stateId || '',
       baseUnit: data.baseUnit || 'KG',
       dosePerHectareMin: data.dosePerHectareMin,
       dosePerHectareMax: data.dosePerHectareMax,
@@ -463,7 +463,7 @@ export function useDosageCalculation() {
     fieldArea: number,
     dosePerHectare: number,
     concentration: number,
-    productState: 'LIQUIDO' | 'SOLIDO'
+    productState: string
   ) => {
     const productUsed = fieldArea * dosePerHectare;
     let waterNeeded = 0;
