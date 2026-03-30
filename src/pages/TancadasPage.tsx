@@ -408,11 +408,17 @@ export default function TancadasPage() {
                       </div>
                     ))}
                   </td>
-                  <td>{tancada.waterAmount} L</td>
                   <td>
-                    <span className="badge badge-secondary">
-                      {tancada.tancadaFields?.length || 0} campo(s)
-                    </span>
+                    {tancada.tancadaFields?.map((tf, idx) => (
+                      <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                        <span className="badge badge-info" style={{ marginRight: '0.25rem' }}>
+                          {tf.field?.name || 'Campo'}
+                        </span>
+                        <span style={{ fontSize: '0.75rem' }}>
+                          {tf.hectaresTreated}/{tf.field?.area || tf.hectaresTreated} ha
+                        </span>
+                      </div>
+                    ))}
                   </td>
                   <td>
                     <button 
