@@ -1,6 +1,7 @@
 import { Product, Lot, Field, Application, Movement, SyncData, CreateApplicationInput, Container, Tancada, Tank } from '../types';
 
-const API_BASE = '/api';
+// Use environment variable or fallback to relative path
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Helper para hacer requests
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
