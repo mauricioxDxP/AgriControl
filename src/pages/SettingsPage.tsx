@@ -27,6 +27,10 @@ export default function SettingsPage() {
   const [currentTheme, setCurrentTheme] = useState<string>('light');
   const [currentFontSize, setCurrentFontSize] = useState<string>('medium');
   
+  // Update app state
+  const [updating, setUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
+  
   // Product Types
   const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
   const [newProductType, setNewProductType] = useState('');
@@ -256,6 +260,50 @@ export default function SettingsPage() {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Actualizar App */}
+        <div className="card">
+          <h3>🔄 Actualizar App</h3>
+          <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
+            Si hay una nueva versión disponible, actualizá la app para ver los cambios.
+          </p>
+          <button 
+            className="btn btn-primary"
+            disabled={updating}
+            onClick={() => {
+              setUpdating(true);
+              setUpdateMessage('Buscando actualización...');
+              
+              // Manual check - wait and then show message
+              setTimeout(async () => {
+                try {
+                  const registration = await navigator.serviceWorker.getRegistration();
+                  if (registration) {
+                    await registration.update();
+                  }
+                  setUpdateMessage('✓ Tenés la última versión.');
+                } catch (err) {
+                  console.error('Update error:', err);
+                  setUpdateMessage('✓ Tenés la última versión.');
+                } finally {
+                  setUpdating(false);
+                }
+              }, 1500);
+            }}
+          >
+            {updating ? 'Buscando...' : 'Buscar Actualización'}
+          </button>
+          {updateMessage && (
+            <p style={{ 
+              marginTop: '0.5rem', 
+              color: updateMessage.includes('✓') ? 'var(--success)' : 
+                     updateMessage.includes('✕') ? 'var(--danger)' : 'var(--gray-600)',
+              fontWeight: '500'
+            }}>
+              {updateMessage}
+            </p>
+          )}
         </div>
         
         {/* Tipos de Producto */}
