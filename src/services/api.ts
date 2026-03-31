@@ -108,7 +108,7 @@ export const applicationsApi = {
     method: 'POST',
     body: JSON.stringify(data)
   }),
-  update: (id: string, data: Partial<Application>) => request<Application>(`/applications/${id}`, {
+  update: (id: string, data: CreateApplicationInput) => request<Application>(`/applications/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data)
   }),

@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTancadas, useProducts, useFields, useTanks, useLots } from '../hooks/useData';
 import { movementsApi } from '../services/api';
-import { Tancada } from '../types';
+import { Tancada, CreateTancadaInput } from '../types';
+import TancadaWizard from '../components/TancadaWizard';
 
 export default function TancadasPage() {
   const { tancadas, loading, addTancada, updateTancada, deleteTancada } = useTancadas();
@@ -39,6 +40,10 @@ export default function TancadasPage() {
   // Resumen modal
   const [showResumen, setShowResumen] = useState(false);
   const [resumenTancada, setResumenTancada] = useState<Tancada | null>(null);
+
+  // Wizard for mobile
+  const [showWizard, setShowWizard] = useState(false);
+  const [editingTancada, setEditingTancada] = useState<Tancada | null>(null);
 
   // Generar texto de resumen para una tancada
   const generarResumenTexto = (tancada: Tancada): string => {
@@ -173,45 +178,51 @@ export default function TancadasPage() {
 
   // Edit existing tancada
   const handleEdit = (tancada: Tancada) => {
-    setEditingId(tancada.id);
-    setFormData({
-      date: new Date(tancada.date).toISOString().split('T')[0],
-      tankCapacity: tancada.tankCapacity.toString(),
-      tankId: '',
-      waterAmount: tancada.waterAmount.toString(),
-      notes: tancada.notes || '',
-      totalHectares: tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0).toString() || ''
-    });
-    
-    // Load products
-    setSelectedProducts(tancada.tancadaProducts?.map(p => {
-      // Parse lotsUsed if available
-      let parsedLots: { lotId: string; quantityUsed: number }[] = [];
-      if (p.lotsUsed) {
-        try {
-          parsedLots = typeof p.lotsUsed === 'string' ? JSON.parse(p.lotsUsed) : p.lotsUsed;
-        } catch (e) {
-          parsedLots = [];
+    // Use wizard on mobile, modal on desktop
+    if (window.innerWidth < 768) {
+      setEditingTancada(tancada);
+      setShowWizard(true);
+    } else {
+      setEditingId(tancada.id);
+      setFormData({
+        date: new Date(tancada.date).toISOString().split('T')[0],
+        tankCapacity: tancada.tankCapacity.toString(),
+        tankId: '',
+        waterAmount: tancada.waterAmount.toString(),
+        notes: tancada.notes || '',
+        totalHectares: tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0).toString() || ''
+      });
+      
+      // Load products
+      setSelectedProducts(tancada.tancadaProducts?.map(p => {
+        // Parse lotsUsed if available
+        let parsedLots: { lotId: string; quantityUsed: number }[] = [];
+        if (p.lotsUsed) {
+          try {
+            parsedLots = typeof p.lotsUsed === 'string' ? JSON.parse(p.lotsUsed) : p.lotsUsed;
+          } catch (e) {
+            parsedLots = [];
+          }
         }
-      }
-      return {
-        productId: p.productId,
-        concentration: p.concentration?.toString() || '',
-        quantity: p.quantity.toString(),
-        dosePerHectare: '',
-        lots: parsedLots
-      };
-    }) || []);
-    
-    // Load field distribution
-    setFieldDistribution(tancada.tancadaFields?.map(f => ({
-      fieldId: f.fieldId,
-      hectares: f.hectaresTreated.toString()
-    })) || []);
-    
-    // Refresh stocks when editing
-    fetchLotStocks();
-    setShowModal(true);
+        return {
+          productId: p.productId,
+          concentration: p.concentration?.toString() || '',
+          quantity: p.quantity.toString(),
+          dosePerHectare: '',
+          lots: parsedLots
+        };
+      }) || []);
+      
+      // Load field distribution
+      setFieldDistribution(tancada.tancadaFields?.map(f => ({
+        fieldId: f.fieldId,
+        hectares: f.hectaresTreated.toString()
+      })) || []);
+      
+      // Refresh stocks when editing
+      fetchLotStocks();
+      setShowModal(true);
+    }
   };
 
   const handleTankSelect = (tankId: string) => {
@@ -440,7 +451,7 @@ export default function TancadasPage() {
         <h2>Tancadas</h2>
         <button 
           className="btn btn-primary" 
-          onClick={() => openModal()}
+          onClick={() => window.innerWidth < 768 ? setShowWizard(true) : openModal()}
           disabled={fields.length === 0 || products.length === 0}
         >
           + Nuevo
@@ -461,7 +472,7 @@ export default function TancadasPage() {
             <div style={{ fontSize: '3rem' }}>🚿</div>
             <h3>No hay tancadas</h3>
             <p>Registrá tu primera tancada para fumigar campos</p>
-            <button className="btn btn-primary mt-1" onClick={() => openModal()}>
+            <button className="btn btn-primary mt-1" onClick={() => window.innerWidth < 768 ? setShowWizard(true) : openModal()}>
               + Nuevo
             </button>
           </div>
@@ -1099,10 +1110,29 @@ export default function TancadasPage() {
               >
                 Cerrar
               </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+      <TancadaWizard
+        isOpen={showWizard}
+        onClose={() => { setShowWizard(false); setEditingTancada(null); }}
+        onSubmit={async (data: CreateTancadaInput) => {
+          if (editingTancada) {
+            await updateTancada(editingTancada.id, data);
+          } else {
+            await addTancada(data);
+          }
+          fetchLotStocks();
+          setEditingTancada(null);
+        }}
+        products={products}
+        fields={fields}
+        tanks={tanks}
+        lots={lots}
+        editTancada={editingTancada as Record<string, unknown> | null | undefined}
+      />
     </div>
   );
 }

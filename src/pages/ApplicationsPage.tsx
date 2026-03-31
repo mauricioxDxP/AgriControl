@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useApplications, useFields, useLots, useProducts, useDosageCalculation } from '../hooks/useData';
 import { movementsApi } from '../services/api';
-import { ApplicationType } from '../types';
+import { ApplicationType, Application } from '../types';
+import ApplicationWizard from '../components/ApplicationWizard';
 
 export default function ApplicationsPage() {
-  const { applications, loading, addApplication, deleteApplication } = useApplications();
+  const { applications, loading, addApplication, updateApplication, deleteApplication } = useApplications();
   const { fields } = useFields();
   const { products } = useProducts();
   const { lots } = useLots();
@@ -27,6 +28,10 @@ export default function ApplicationsPage() {
     quantityUsed: string;
     lots: { lotId: string; quantityUsed: number }[];
   }[]>([]);
+
+  // Wizard for mobile
+  const [showWizard, setShowWizard] = useState(false);
+  const [editingApplication, setEditingApplication] = useState<Application | null>(null);
 
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
@@ -154,7 +159,7 @@ export default function ApplicationsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    await addApplication({
+    const appData = {
       fieldId: formData.fieldId,
       type: formData.type,
       date: new Date(formData.date).toISOString(),
@@ -170,9 +175,16 @@ export default function ApplicationsPage() {
           quantityUsed: l.quantityUsed
         }))
       }))
-    });
+    };
+
+    if (editingApplication) {
+      await updateApplication(editingApplication.id, appData);
+    } else {
+      await addApplication(appData);
+    }
 
     setShowModal(false);
+    setEditingApplication(null);
     resetForm();
     
     // Refresh lot stocks after creating
@@ -197,6 +209,33 @@ export default function ApplicationsPage() {
     }
   };
 
+  // Handle edit - use modal on desktop, wizard on mobile
+  const handleEdit = (app: Application) => {
+    if (window.innerWidth < 768) {
+      setEditingApplication(app);
+      setShowWizard(true);
+    } else {
+      // Desktop - use modal
+      setEditingApplication(app);
+      setFormData({
+        fieldId: app.fieldId,
+        type: app.type,
+        date: new Date(app.date).toISOString().split('T')[0],
+        waterAmount: app.waterAmount?.toString() || '',
+        notes: app.notes || ''
+      });
+      setSelectedProducts(app.applicationProducts?.map(p => ({
+        productId: p.productId,
+        dosePerHectare: p.dosePerHectare?.toString() || '',
+        concentration: p.concentration?.toString() || '',
+        quantityUsed: p.quantityUsed?.toString() || '',
+        lots: []
+      })) || []);
+      fetchLotStocks();
+      setShowModal(true);
+    }
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString();
   };
@@ -215,7 +254,7 @@ export default function ApplicationsPage() {
         <h2>Aplicaciones</h2>
         <button 
           className="btn btn-primary" 
-          onClick={() => { resetForm(); fetchLotStocks(); setShowModal(true); }}
+          onClick={() => window.innerWidth < 768 ? setShowWizard(true) : (resetForm(), fetchLotStocks(), setShowModal(true))}
           disabled={fields.length === 0 || products.length === 0}
         >
           + Nuevo
@@ -289,6 +328,13 @@ export default function ApplicationsPage() {
                 
                 <div className="card-mobile-actions">
                   <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => { setEditingApplication(app); setShowWizard(true); }}
+                    style={{ width: '100%', marginBottom: '0.5rem' }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button 
                     className="btn btn-danger btn-sm"
                     onClick={() => handleDelete(app.id)}
                     style={{ width: '100%' }}
@@ -338,6 +384,13 @@ export default function ApplicationsPage() {
                     <td>
                       <div className="action-buttons">
                         <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleEdit(app)}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button 
                           className="btn btn-danger btn-sm"
                           onClick={() => handleDelete(app.id)}
                           title="Eliminar"
@@ -356,13 +409,13 @@ export default function ApplicationsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingApplication(null); }}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <div className="modal-header">
-              <h3 className="modal-title">Nueva Aplicación</h3>
+              <h3 className="modal-title">{editingApplication ? 'Editar Aplicación' : 'Nueva Aplicación'}</h3>
               <button 
                 className="btn btn-icon btn-secondary"
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); setEditingApplication(null); }}
               >
                 ✕
               </button>
@@ -657,13 +710,32 @@ export default function ApplicationsPage() {
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={selectedProducts.length === 0}>
-                  Registrar Aplicación
+                  {editingApplication ? 'Guardar Cambios' : 'Registrar Aplicación'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Wizard para móvil */}
+      <ApplicationWizard
+        isOpen={showWizard}
+        onClose={() => { setShowWizard(false); setEditingApplication(null); }}
+        onSubmit={async (data) => {
+          if (editingApplication) {
+            await updateApplication(editingApplication.id, data);
+          } else {
+            await addApplication(data);
+          }
+          fetchLotStocks();
+          setEditingApplication(null);
+        }}
+        products={products}
+        fields={fields}
+        lots={lots}
+        editApplication={editingApplication as Record<string, unknown> | null | undefined}
+      />
     </div>
   );
 }

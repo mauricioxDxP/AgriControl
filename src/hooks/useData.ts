@@ -419,7 +419,57 @@ export function useApplications(fieldId?: string) {
     setApplications(prev => prev.filter(a => a.id !== id));
   };
 
-  return { applications, loading, addApplication, deleteApplication, refresh: loadApplications };
+  const updateApplication = async (id: string, data: CreateApplicationInput) => {
+    const { lots, products, ...appData } = data;
+    const updatedApplication: Application = {
+      id,
+      fieldId: appData.fieldId || '',
+      type: appData.type || 'FUMIGACION',
+      date: appData.date || new Date().toISOString(),
+      waterAmount: appData.waterAmount,
+      notes: appData.notes,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      synced: false,
+      applicationProducts: products?.map(p => ({
+        id: uuidv4(),
+        applicationId: id,
+        productId: p.productId,
+        dosePerHectare: p.dosePerHectare,
+        concentration: p.concentration,
+        quantityUsed: p.quantityUsed,
+        createdAt: new Date().toISOString(),
+        synced: false
+      })),
+      applicationLots: lots?.map(l => ({
+        id: uuidv4(),
+        applicationId: id,
+        lotId: l.lotId,
+        quantityUsed: l.quantityUsed,
+        createdAt: new Date().toISOString(),
+        synced: false
+      }))
+    };
+
+    if (isOnline) {
+      try {
+        const updated = await applicationsApi.update(id, { ...appData, products, lots });
+        await dbHelpers.updateApplication(id, updated);
+        setApplications(prev => prev.map(a => a.id === id ? updated : a));
+        return updated;
+      } catch {
+        await dbHelpers.updateApplication(id, updatedApplication);
+        setApplications(prev => prev.map(a => a.id === id ? updatedApplication : a));
+        return updatedApplication;
+      }
+    } else {
+      await dbHelpers.updateApplication(id, updatedApplication);
+      setApplications(prev => prev.map(a => a.id === id ? updatedApplication : a));
+      return updatedApplication;
+    }
+  };
+
+  return { applications, loading, addApplication, updateApplication, deleteApplication, refresh: loadApplications };
 }
 
 // Hook para sincronización
