@@ -2,9 +2,14 @@ import { useState, useMemo } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
 
 export default function StockPage() {
-  const { products } = useProducts();
-  const { lots } = useLots();
-  const { movements } = useMovements();
+  const productsHook = useProducts();
+  const lotsHook = useLots();
+  const movementsHook = useMovements();
+  
+  const products = productsHook.products;
+  const lots = lotsHook.lots;
+  const movements = movementsHook.movements;
+  
   const [selectedProductId, setSelectedProductId] = useState<string>('');
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
@@ -90,38 +95,105 @@ export default function StockPage() {
     <div>
       <h2 style={{ marginBottom: '1.5rem' }}>Stock de Productos</h2>
 
+      {products.length === 0 && (
+        <div className="card">
+          <div className="empty-state">
+            <p>No hay productos registrados</p>
+          </div>
+        </div>
+      )}
+
       {/* Stock por producto */}
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">Stock por Producto</h3>
         </div>
+        
+        {/* Vista móvil - Cards */}
+        {stockByProduct.length > 0 && (
+          <div className="mobile-cards">
+            {stockByProduct.map((item) => {
+              const typeName = item.product.type?.name || String(item.product.type || 'OTRO');
+              return (
+                <div 
+                  key={item.product.id} 
+                  className="card-mobile"
+                  onClick={() => setSelectedProductId(item.product.id)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="card-mobile-header">
+                    <span className="card-mobile-date">{item.product.name}</span>
+                    <span className={`card-mobile-badge ${
+                      typeName === 'SEMILLA' ? 'badge-primary' : 
+                      typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
+                    }`}>
+                      {typeName}
+                    </span>
+                  </div>
+                  
+                  <div className="card-mobile-content">
+                    <div className="card-mobile-row">
+                      <div>
+                        <span className="card-mobile-label">Lotes:</span>
+                        <span>{item.lotesCount}</span>
+                      </div>
+                      <div>
+                        <span className="card-mobile-label">Stock:</span>
+                        <strong style={{ 
+                          color: item.stock < 0 ? 'var(--danger)' : item.stock === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                        }}>
+                          {formatNumber(item.stock)} {item.product.baseUnit}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="card-mobile-actions">
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedProductId(item.product.id);
+                      }}
+                      style={{ width: '100%' }}
+                    >
+                      📋 Ver Detalle
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Vista desktop - Tabla */}
         {stockByProduct.length > 0 ? (
-          <div className="table-container">
+          <div className="table-container hide-mobile">
             <table className="table">
               <thead>
                 <tr>
                   <th>Producto</th>
                   <th>Tipo</th>
                   <th>Lotes</th>
-                  <th>Entradas</th>
-                  <th>Salidas</th>
-                  <th>Stock Actual</th>
-                  <th>Acciones</th>
+                  <th className="hide-mobile">Entradas</th>
+                  <th className="hide-mobile">Salidas</th>
+                  <th>Stock</th>
+                  <th className="hide-mobile">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {stockByProduct.map(({ product, entradas, salidas, stock, lotesCount }) => {
-                  const typeName = product.type?.name || String(product.type || 'OTRO');
+                {stockByProduct.map((item) => {
+                  const typeName = item.product.type?.name || String(item.product.type || 'OTRO');
                   return (
                   <tr 
-                    key={product.id}
+                    key={item.product.id}
                     style={{ 
-                      background: selectedProductId === product.id ? 'var(--gray-100)' : 'transparent',
+                      background: selectedProductId === item.product.id ? 'var(--gray-100)' : 'transparent',
                       cursor: 'pointer'
                     }}
-                    onClick={() => setSelectedProductId(product.id)}
+                    onClick={() => setSelectedProductId(item.product.id)}
                   >
-                    <td><strong>{product.name}</strong></td>
+                    <td><strong>{item.product.name}</strong></td>
                     <td>
                       <span className={`badge ${
                         typeName === 'SEMILLA' ? 'badge-primary' : 
@@ -130,26 +202,25 @@ export default function StockPage() {
                         {typeName}
                       </span>
                     </td>
-                    <td>{lotesCount}</td>
-                    <td style={{ color: 'var(--success)' }}>{formatNumber(entradas)} {product.baseUnit}</td>
-                    <td style={{ color: 'var(--danger)' }}>{formatNumber(salidas)} {product.baseUnit}</td>
+                    <td>{item.lotesCount}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--success)' }}>{formatNumber(item.entradas)}</td>
+                    <td className="hide-mobile" style={{ color: 'var(--danger)' }}>{formatNumber(item.salidas)}</td>
                     <td>
                       <strong style={{ 
-                        color: stock < 0 ? 'var(--danger)' : stock === 0 ? 'var(--gray-500)' : 'var(--primary)',
-                        fontSize: '1.1rem'
+                        color: item.stock < 0 ? 'var(--danger)' : item.stock === 0 ? 'var(--gray-500)' : 'var(--primary)'
                       }}>
-                        {formatNumber(stock)} {product.baseUnit}
+                        {formatNumber(item.stock)}
                       </strong>
                     </td>
-                    <td>
+                    <td className="hide-mobile">
                       <button 
                         className="btn btn-secondary btn-sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedProductId(product.id);
+                          setSelectedProductId(item.product.id);
                         }}
                       >
-                        Ver Detalle
+                        Ver
                       </button>
                     </td>
                   </tr>
@@ -230,8 +301,53 @@ export default function StockPage() {
 
           {/* Lotes del producto */}
           <h4 style={{ marginBottom: '0.75rem' }}>Lotes ({lotsWithStock.length})</h4>
+          
+          {/* Cards móvil */}
+          <div className="mobile-cards">
+            {lotsWithStock.map(lot => (
+              <div key={lot.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">
+                    {lot.lotCode ? lot.lotCode : lot.id.slice(0, 8)}
+                  </span>
+                  <span className={`card-mobile-badge ${
+                    lot.stockActual <= 0 ? 'badge-danger' : 'badge-primary'
+                  }`}>
+                    {lot.stockActual <= 0 ? 'Vacío' : 'Activo'}
+                  </span>
+                </div>
+                <div className="card-mobile-content">
+                  <div className="card-mobile-row">
+                    <div>
+                      <span className="card-mobile-label">Stock:</span>
+                      <strong style={{ 
+                        color: lot.stockActual < 0 ? 'var(--danger)' : 
+                               lot.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                      }}>
+                        {formatNumber(lot.stockActual)} {selectedProduct.baseUnit}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="card-mobile-label">Inicial:</span>
+                      <span>{lot.initialStock}</span>
+                    </div>
+                  </div>
+                  {lot.expiryDate && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Vence:</span>
+                      <span style={{ color: new Date(lot.expiryDate) < new Date() ? 'var(--danger)' : 'inherit' }}>
+                        {new Date(lot.expiryDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Tabla desktop */}
           {lotsWithStock.length > 0 ? (
-            <div className="table-container">
+            <div className="table-container hide-mobile">
               <table className="table">
                 <thead>
                   <tr>
@@ -291,8 +407,44 @@ export default function StockPage() {
           <h4 style={{ marginTop: '1.5rem', marginBottom: '0.75rem' }}>
             Historial de Movimientos ({productMovements.length})
           </h4>
+          
+          {/* Cards móvil */}
+          <div className="mobile-cards">
+            {productMovements.map(movement => (
+              <div key={movement.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">{new Date(movement.createdAt).toLocaleDateString()}</span>
+                  <span className={`card-mobile-badge ${
+                    movement.type === 'ENTRADA' ? 'badge-primary' : 'badge-danger'
+                  }`}>
+                    {movement.type}
+                  </span>
+                </div>
+                <div className="card-mobile-content">
+                  <div className="card-mobile-row">
+                    <div>
+                      <span className="card-mobile-label">Cantidad:</span>
+                      <strong style={{ 
+                        color: movement.type === 'ENTRADA' ? 'var(--success)' : 'var(--danger)'
+                      }}>
+                        {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {selectedProduct.baseUnit}
+                      </strong>
+                    </div>
+                  </div>
+                  {movement.notes && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Notas:</span>
+                      <span>{movement.notes}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Tabla desktop */}
           {productMovements.length > 0 ? (
-            <div className="table-container">
+            <div className="table-container hide-mobile">
               <table className="table">
                 <thead>
                   <tr>

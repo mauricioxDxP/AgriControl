@@ -193,77 +193,153 @@ export default function LotsPage() {
           </div>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Código</th>
-                <th>Producto</th>
-                <th>Fecha Ingreso</th>
-                <th>Vencimiento</th>
-                <th>Proveedor</th>
-                <th>Stock</th>
-                <th>Contenedor</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-              <tbody>
-              {lots.map(lot => (
-                <tr key={lot.id}>
-                  <td>
-                    {lot.lotCode ? (
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="mobile-cards">
+            {lots.map(lot => (
+              <div key={lot.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">{formatDate(lot.entryDate)}</span>
+                  {isExpired(lot.expiryDate) ? (
+                    <span className="card-mobile-badge badge-danger">Vencido</span>
+                  ) : (
+                    <span className="card-mobile-badge badge-primary">Activo</span>
+                  )}
+                </div>
+                
+                <div className="card-mobile-content">
+                  <div className="card-mobile-section">
+                    <span className="card-mobile-label">Producto:</span>
+                    <span>{getProductName(lot.productId)}</span>
+                  </div>
+                  
+                  {lot.lotCode && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Código:</span>
                       <span className="badge badge-info">{lot.lotCode}</span>
-                    ) : (
-                      <span style={{ color: 'var(--gray-400)' }}>-</span>
-                    )}
-                  </td>
-                  <td><strong>{getProductName(lot.productId)}</strong></td>
-                  <td>{formatDate(lot.entryDate)}</td>
-                  <td>
-                    {lot.expiryDate ? formatDate(lot.expiryDate) : '-'}
-                    {isExpired(lot.expiryDate) && (
-                      <span className="badge badge-danger" style={{ marginLeft: '0.5rem' }}>
-                        Vencido
-                      </span>
-                    )}
-                  </td>
-                  <td>{lot.supplier || '-'}</td>
-                  <td>{lot.initialStock}</td>
-                  <td>
+                    </div>
+                  )}
+                  
+                  <div className="card-mobile-row">
+                    <div>
+                      <span className="card-mobile-label">Stock:</span>
+                      <span>{lot.initialStock}</span>
+                    </div>
                     {lot.containerCapacity && (
-                      <span className="badge badge-info">
-                        {(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{products.find(p => p.id === lot.productId)?.baseUnit || 'L'}
-                      </span>
+                      <div>
+                        <span className="card-mobile-label">Contenedor:</span>
+                        <span>{(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}</span>
+                      </div>
                     )}
-                  </td>
-                  <td>
-                    {isExpired(lot.expiryDate) ? (
-                      <span className="badge badge-danger">Vencido</span>
-                    ) : (
-                      <span className="badge badge-primary">Activo</span>
-                    )}
-                  </td>
-                  <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openEditModal(lot)}
-                      style={{ marginRight: '0.5rem' }}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(lot.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
+                  </div>
+                  
+                  {lot.expiryDate && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Vencimiento:</span>
+                      <span>{formatDate(lot.expiryDate)}</span>
+                    </div>
+                  )}
+                  
+                  {lot.supplier && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Proveedor:</span>
+                      <span>{lot.supplier}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="card-mobile-actions">
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => openEditModal(lot)}
+                    style={{ flex: 1 }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(lot.id)}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla */}
+          <div className="table-container hide-mobile">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Producto</th>
+                  <th>Fecha Ingreso</th>
+                  <th>Vencimiento</th>
+                  <th>Proveedor</th>
+                  <th>Stock</th>
+                  <th>Contenedor</th>
+                  <th>Estado</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+                <tbody>
+                {lots.map(lot => (
+                  <tr key={lot.id}>
+                    <td>
+                      {lot.lotCode ? (
+                        <span className="badge badge-info">{lot.lotCode}</span>
+                      ) : (
+                        <span style={{ color: 'var(--gray-400)' }}>-</span>
+                      )}
+                    </td>
+                    <td><strong>{getProductName(lot.productId)}</strong></td>
+                    <td>{formatDate(lot.entryDate)}</td>
+                    <td>
+                      {lot.expiryDate ? formatDate(lot.expiryDate) : '-'}
+                      {isExpired(lot.expiryDate) && (
+                        <span className="badge badge-danger" style={{ marginLeft: '0.5rem' }}>
+                          Vencido
+                        </span>
+                      )}
+                    </td>
+                    <td>{lot.supplier || '-'}</td>
+                    <td>{lot.initialStock}</td>
+                    <td>
+                      {lot.containerCapacity && (
+                        <span className="badge badge-info">
+                          {(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{products.find(p => p.id === lot.productId)?.baseUnit || 'L'}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {isExpired(lot.expiryDate) ? (
+                        <span className="badge badge-danger">Vencido</span>
+                      ) : (
+                        <span className="badge badge-primary">Activo</span>
+                      )}
+                    </td>
+                    <td>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openEditModal(lot)}
+                        style={{ marginRight: '0.5rem' }}
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(lot.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Create Modal */}

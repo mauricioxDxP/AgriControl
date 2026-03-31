@@ -166,54 +166,107 @@ export default function ProductsPage() {
           </div>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Tipo</th>
-                <th>Estado</th>
-                <th>Unidad</th>
-                <th>Dosis/ha</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map(product => (
-                <tr key={product.id}>
-                  <td><strong>{product.name}</strong></td>
-                  <td>
-                    <span className={`badge ${getTypeBadge(product)}`}>
-                      {getTypeName(product)}
-                    </span>
-                  </td>
-                  <td>{getStateName(product)}</td>
-                  <td>{product.baseUnit}</td>
-                  <td>
-                    {product.dosePerHectareMin && product.dosePerHectareMax 
-                      ? `${product.dosePerHectareMin}-${product.dosePerHectareMax}` 
-                      : '-'}
-                  </td>
-                  <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => openModal(product)}
-                      style={{ marginRight: '0.5rem' }}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(product.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="mobile-cards">
+            {products.map(product => (
+              <div key={product.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">{product.name}</span>
+                  <span className={`card-mobile-badge ${getTypeBadge(product)}`}>
+                    {getTypeName(product)}
+                  </span>
+                </div>
+                
+                <div className="card-mobile-content">
+                  <div className="card-mobile-row">
+                    <div>
+                      <span className="card-mobile-label">Estado:</span>
+                      <span>{getStateName(product)}</span>
+                    </div>
+                    <div>
+                      <span className="card-mobile-label">Unidad:</span>
+                      <span>{product.baseUnit}</span>
+                    </div>
+                  </div>
+                  
+                  {product.dosePerHectareMin && product.dosePerHectareMax && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Dosis/ha:</span>
+                      <span>{product.dosePerHectareMin}-{product.dosePerHectareMax}</span>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="card-mobile-actions">
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => openModal(product)}
+                    style={{ flex: 1 }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(product.id)}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla */}
+          <div className="table-container hide-mobile">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Nombre</th>
+                  <th>Tipo</th>
+                  <th>Estado</th>
+                  <th>Unidad</th>
+                  <th>Dosis/ha</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {products.map(product => (
+                  <tr key={product.id}>
+                    <td><strong>{product.name}</strong></td>
+                    <td>
+                      <span className={`badge ${getTypeBadge(product)}`}>
+                        {getTypeName(product)}
+                      </span>
+                    </td>
+                    <td>{getStateName(product)}</td>
+                    <td>{product.baseUnit}</td>
+                    <td>
+                      {product.dosePerHectareMin && product.dosePerHectareMax 
+                        ? `${product.dosePerHectareMin}-${product.dosePerHectareMax}` 
+                        : '-'}
+                    </td>
+                    <td>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => openModal(product)}
+                        style={{ marginRight: '0.5rem' }}
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        className="btn btn-danger btn-sm"
+                        onClick={() => handleDelete(product.id)}
+                      >
+                        Eliminar
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal de Producto */}
