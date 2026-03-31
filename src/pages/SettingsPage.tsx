@@ -6,8 +6,26 @@ interface SettingItem {
   name: string;
 }
 
+// Lista de temas disponibles
+const themes = [
+  { id: 'light', name: 'Claro', icon: '☀️', colors: ['#2e7d32', '#f5f5f5', '#ffffff'] },
+  { id: 'dark', name: 'Oscuro', icon: '🌙', colors: ['#4caf50', '#1a1a1a', '#121212'] },
+  { id: 'blue', name: 'Azul', icon: '🔵', colors: ['#1565c0', '#f5f5f5', '#ffffff'] },
+  { id: 'purple', name: 'Morado', icon: '🟣', colors: ['#7b1fa2', '#f5f5f5', '#ffffff'] },
+];
+
+// Lista de tamaños de fuente
+const fontSizes = [
+  { id: 'small', name: 'Pequeño', size: '14px', sample: 'Aa' },
+  { id: 'medium', name: 'Normal', size: '16px', sample: 'Aa' },
+  { id: 'large', name: 'Grande', size: '18px', sample: 'Aa' },
+  { id: 'xlarge', name: 'Extra Grande', size: '20px', sample: 'Aa' },
+];
+
 export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
+  const [currentTheme, setCurrentTheme] = useState<string>('light');
+  const [currentFontSize, setCurrentFontSize] = useState<string>('medium');
   
   // Product Types
   const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
@@ -20,6 +38,33 @@ export default function SettingsPage() {
   // Container Types
   const [containerTypes, setContainerTypes] = useState<SettingItem[]>([]);
   const [newContainerType, setNewContainerType] = useState('');
+
+  // Cargar tema al inicio
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme') || 'light';
+    setCurrentTheme(savedTheme);
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    // Cargar tamaño de fuente
+    const savedFontSize = localStorage.getItem('app-font-size') || 'medium';
+    setCurrentFontSize(savedFontSize);
+    document.documentElement.style.fontSize = fontSizes.find(f => f.id === savedFontSize)?.size || '16px';
+  }, []);
+
+  // Cambiar tema
+  const changeTheme = (themeId: string) => {
+    setCurrentTheme(themeId);
+    localStorage.setItem('app-theme', themeId);
+    document.documentElement.setAttribute('data-theme', themeId);
+  };
+
+  // Cambiar tamaño de fuente
+  const changeFontSize = (fontSizeId: string) => {
+    setCurrentFontSize(fontSizeId);
+    localStorage.setItem('app-font-size', fontSizeId);
+    const size = fontSizes.find(f => f.id === fontSizeId)?.size || '16px';
+    document.documentElement.style.fontSize = size;
+  };
 
   useEffect(() => {
     loadData();
@@ -127,6 +172,90 @@ export default function SettingsPage() {
       <h2>Configuración</h2>
       
       <div style={{ display: 'grid', gap: '1.5rem', marginTop: '1rem' }}>
+        
+        {/* Temas */}
+        <div className="card">
+          <h3>🎨 Tema</h3>
+          <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
+            Elegí el tema que más te guste.
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
+            {themes.map(theme => (
+              <button
+                key={theme.id}
+                onClick={() => changeTheme(theme.id)}
+                style={{
+                  padding: '1rem',
+                  border: currentTheme === theme.id ? '3px solid var(--primary)' : '2px solid var(--gray-300)',
+                  borderRadius: 'var(--radius)',
+                  background: theme.id === 'dark' ? '#1a1a1a' : theme.colors[1],
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: '1.5rem' }}>{theme.icon}</span>
+                <span style={{ fontWeight: 'bold', color: theme.id === 'dark' ? '#fff' : '#333' }}>
+                  {theme.name}
+                </span>
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {theme.colors.map((color, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        borderRadius: '50%',
+                        background: color,
+                        border: '1px solid var(--gray-400)',
+                      }}
+                    />
+                  ))}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* Tamaño de Fuente */}
+        <div className="card">
+          <h3>🔤 Tamaño de Letra</h3>
+          <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
+            Elegí el tamaño de letra que más te resulte cómodo.
+          </p>
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '1rem' }}>
+            {fontSizes.map(font => (
+              <button
+                key={font.id}
+                onClick={() => changeFontSize(font.id)}
+                style={{
+                  padding: '1rem',
+                  border: currentFontSize === font.id ? '3px solid var(--primary)' : '2px solid var(--gray-300)',
+                  borderRadius: 'var(--radius)',
+                  background: 'var(--white)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <span style={{ fontSize: font.size, fontWeight: 'bold' }}>
+                  {font.sample}
+                </span>
+                <span style={{ fontSize: '0.875rem' }}>
+                  {font.name}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
         
         {/* Tipos de Producto */}
         <div className="card">

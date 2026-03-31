@@ -218,7 +218,7 @@ export default function ApplicationsPage() {
           onClick={() => { resetForm(); fetchLotStocks(); setShowModal(true); }}
           disabled={fields.length === 0 || products.length === 0}
         >
-          + Nueva Aplicación
+          + Nuevo
         </button>
       </div>
 
@@ -245,7 +245,7 @@ export default function ApplicationsPage() {
             <h3>No hay aplicaciones</h3>
             <p>Registrá tu primera aplicación de fumigación o siembra</p>
             <button className="btn btn-primary mt-1" onClick={() => { resetForm(); setShowModal(true); }}>
-              + Crear Aplicación
+              + Nuevo
             </button>
           </div>
         </div>

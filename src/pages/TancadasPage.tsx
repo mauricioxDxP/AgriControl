@@ -443,7 +443,7 @@ export default function TancadasPage() {
           onClick={() => openModal()}
           disabled={fields.length === 0 || products.length === 0}
         >
-          + Nueva Tancada
+          + Nuevo
         </button>
       </div>
 
@@ -462,7 +462,7 @@ export default function TancadasPage() {
             <h3>No hay tancadas</h3>
             <p>Registrá tu primera tancada para fumigar campos</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Crear Tancada
+              + Nuevo
             </button>
           </div>
         </div>

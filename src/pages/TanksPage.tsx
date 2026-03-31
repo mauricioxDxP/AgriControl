@@ -62,7 +62,7 @@ export default function TanksPage() {
       <div className="flex flex-between mb-2">
         <h2>Tanques Fijos</h2>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          + Nuevo Tanque
+          + Nuevo
         </button>
       </div>
 
@@ -73,7 +73,7 @@ export default function TanksPage() {
             <h3>No hay tanques registrados</h3>
             <p>Agregá tanques fijos para usar en las tancadas</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Crear Tanque
+              + Nuevo
             </button>
           </div>
         </div>

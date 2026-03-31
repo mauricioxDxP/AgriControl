@@ -1,4 +1,5 @@
 :root {
+  /* Tema claro (default) */
   --primary: #2e7d32;
   --primary-dark: #1b5e20;
   --primary-light: #4caf50;
@@ -26,6 +27,62 @@
   --radius: 8px;
   --radius-sm: 4px;
   --radius-lg: 12px;
+}
+
+/* Tema oscuro */
+[data-theme="dark"] {
+  --primary: #4caf50;
+  --primary-dark: #388e3c;
+  --primary-light: #81c784;
+  --secondary: #ffb74d;
+  --secondary-dark: #ffa726;
+  --danger: #ef5350;
+  --danger-light: #e57373;
+  --success: #66bb6a;
+  --warning: #ffca28;
+  --info: #42a5f5;
+  --gray-50: #1a1a1a;
+  --gray-100: #242424;
+  --gray-200: #333333;
+  --gray-300: #424242;
+  --gray-400: #616161;
+  --gray-500: #757575;
+  --gray-600: #9e9e9e;
+  --gray-700: #bdbdbd;
+  --gray-800: #e0e0e0;
+  --gray-900: #f5f5f5;
+  --white: #121212;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.5), 0 3px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* Tema azul */
+[data-theme="blue"] {
+  --primary: #1565c0;
+  --primary-dark: #0d47a1;
+  --primary-light: #42a5f5;
+  --secondary: #ff9800;
+  --secondary-dark: #f57c00;
+  --danger: #d32f2f;
+  --danger-light: #ef5350;
+  --success: #388e3c;
+  --warning: #f57c00;
+  --info: #1976d2;
+}
+
+/* Tema morado */
+[data-theme="purple"] {
+  --primary: #7b1fa2;
+  --primary-dark: #4a148c;
+  --primary-light: #ba68c8;
+  --secondary: #ff9800;
+  --secondary-dark: #f57c00;
+  --danger: #d32f2f;
+  --danger-light: #ef5350;
+  --success: #7b1fa2;
+  --warning: #f57c00;
+  --info: #7b1fa2;
 }
 
 * {
@@ -66,6 +123,18 @@ body {
   z-index: 100;
 }
 
+/* En móvil el header */
+@media (max-width: 800px) {
+  .app-header {
+    padding: 1rem !important;
+  }
+  
+  .app-header h1 {
+    justify-content: center;
+    margin: 0;
+  }
+}
+
 .app-header h1 {
   font-size: 1.5rem;
   font-weight: 600;
@@ -83,11 +152,12 @@ body {
 }
 
 .app-footer {
-  background: var(--gray-800);
-  color: var(--gray-300);
+  background: var(--gray-200);
+  color: var(--gray-700);
   padding: 0.75rem;
   text-align: center;
   font-size: 0.875rem;
+  border-top: 1px solid var(--gray-300);
 }
 
 /* Navigation */
@@ -95,8 +165,8 @@ body {
   display: flex;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: var(--white);
-  border-bottom: 1px solid var(--gray-200);
+  background: var(--gray-100);
+  border-bottom: 1px solid var(--gray-300);
   overflow-x: auto;
   position: sticky;
   top: 56px;
@@ -124,15 +194,109 @@ body {
   color: var(--white);
 }
 
+/* Botón hamburguesa - siempre visible en móvil */
+.hamburger-btn {
+  display: none;
+}
+
+/* Mostrar botón en móvil */
+@media (max-width: 800px) {
+  .hamburger-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: var(--white) !important;
+    border: 1px solid var(--gray-200) !important;
+    font-size: 1.25rem !important;
+    cursor: pointer;
+    color: var(--gray-700) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+    border-radius: 6px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    position: fixed !important;
+    top: 12px !important;
+    left: 12px !important;
+    z-index: 9999 !important;
+  }
+}
+
+/* Overlay del menú */
+.nav-overlay {
+  display: none;
+}
+
+/* Ocultar botón en desktop */
+.hide-desktop {
+  display: none;
+}
+
+/* Estilos para móvil - Menú hamburguesa */
+@media (max-width: 800px) {
+  .hide-desktop {
+    display: block;
+  }
+  
+  .hide-mobile {
+    display: none !important;
+  }
+  
+  .nav-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 1rem;
+    padding-top: 4rem;
+    background: var(--white);
+    border-right: 1px solid var(--gray-200);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 100;
+    overflow-y: auto;
+  }
+  
+  .nav-bar.open {
+    transform: translateX(0);
+  }
+  
+  .nav-link {
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    border-radius: var(--radius);
+  }
+  
+  .nav-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+  }
+  
+  /* Ajuste del header para hacer espacio al botón */
+  .app-header {
+    padding-left: 3rem !important;
+  }
+}
+
 /* Status Bar */
 .status-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background: var(--gray-800);
-  color: var(--gray-300);
+  background: var(--gray-100);
+  color: var(--gray-700);
   font-size: 0.75rem;
+  border-bottom: 1px solid var(--gray-300);
 }
 
 .status-indicator {
@@ -316,23 +480,23 @@ body {
 }
 
 .badge-primary {
-  background: rgba(46, 125, 50, 0.1);
-  color: var(--primary);
+  background: var(--primary);
+  color: var(--white);
 }
 
 .badge-secondary {
-  background: rgba(255, 152, 0, 0.1);
-  color: var(--secondary-dark);
+  background: var(--secondary);
+  color: var(--white);
 }
 
 .badge-danger {
-  background: rgba(211, 47, 47, 0.1);
-  color: var(--danger);
+  background: var(--danger);
+  color: var(--white);
 }
 
 .badge-info {
-  background: rgba(25, 118, 210, 0.1);
-  color: var(--info);
+  background: var(--info);
+  color: var(--white);
 }
 
 /* Empty State */

@@ -1,5 +1,6 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useOnlineStatus, useSync } from './hooks/useData';
+import { useState } from 'react';
 import ProductsPage from './pages/ProductsPage';
 import LotsPage from './pages/LotsPage';
 import FieldsPage from './pages/FieldsPage';
@@ -14,6 +15,7 @@ import SettingsPage from './pages/SettingsPage';
 function App() {
   const isOnline = useOnlineStatus();
   const { syncing, lastSync, sync } = useSync();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
@@ -24,7 +26,7 @@ function App() {
     { path: '/fields', label: 'Campos', icon: '🌾' },
     { path: '/tanks', label: 'Tanques', icon: '🛢️' },
     { path: '/tancadas', label: 'Tancadas', icon: '🚿' },
-    { path: '/applications', label: 'Aplicaciones', icon: '🚜' },
+    { path: '/applications', label: 'Aplicaciones', icon: '🚁' },
     { path: '/settings', label: 'Configuración', icon: '⚙️' },
   ];
 
@@ -55,18 +57,36 @@ function App() {
         </div>
       </div>
 
-      <nav className="nav-bar">
+      {/* Botón hamburguesa para móvil - FUERA del nav */}
+      <button 
+        className="hamburger-btn"
+        onClick={() => setMenuOpen(!menuOpen)}
+        aria-label="Menú"
+      >
+        {menuOpen ? '✕' : '☰'}
+      </button>
+
+      <nav className={`nav-bar ${menuOpen ? 'open' : ''}`}>
         {navItems.map(item => (
           <NavLink
             key={item.path}
             to={item.path}
             className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
             end={item.path === '/'}
+            onClick={() => setMenuOpen(false)}
           >
             {item.icon} {item.label}
           </NavLink>
         ))}
       </nav>
+
+      {/* Overlay para cerrar menú */}
+      {menuOpen && (
+        <div 
+          className="nav-overlay hide-desktop" 
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
 
       <main className="app-main">
         <Routes>

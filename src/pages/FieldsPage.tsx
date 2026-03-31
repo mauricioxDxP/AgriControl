@@ -73,7 +73,7 @@ export default function FieldsPage() {
       <div className="flex flex-between mb-2">
         <h2>Campos / Parcelas</h2>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          + Nuevo Campo
+          + Nuevo
         </button>
       </div>
 
@@ -84,7 +84,7 @@ export default function FieldsPage() {
             <h3>No hay campos registrados</h3>
             <p>Registrá tu primer campo para comenzar</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Crear Campo
+              + Nuevo
             </button>
           </div>
         </div>

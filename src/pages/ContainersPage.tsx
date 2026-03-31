@@ -128,7 +128,7 @@ export default function ContainersPage() {
       <div className="flex flex-between mb-2">
         <h2>Contenedores</h2>
         <button className="btn btn-primary" onClick={() => openModal()} disabled={lots.length === 0}>
-          + Nuevo Contenedor
+          + Nuevo
         </button>
       </div>
 
@@ -148,7 +148,7 @@ export default function ContainersPage() {
             <h3>No hay contenedores</h3>
             <p>Registrá tu primer contenedor para gestionar el inventario físico</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Crear Contenedor
+              + Nuevo
             </button>
           </div>
         </div>
@@ -165,12 +165,12 @@ export default function ContainersPage() {
             const totalCurrent = lotContainers.reduce((sum, c) => sum + (c.currentQuantity || 0), 0);
             const totalCapacity = lotContainers.reduce((sum, c) => sum + c.capacity, 0);
             
-            return (
-              <div key={lot.id} style={{ marginBottom: '1.5rem' }}>
+              return (
+                <div key={lot.id} style={{ marginBottom: '1.5rem' }}>
                 {/* Header del lote */}
                 <div style={{ 
                   background: 'var(--primary)', 
-                  color: 'white', 
+                  color: 'var(--white)', 
                   padding: '0.75rem', 
                   borderRadius: 'var(--radius) var(--radius) 0 0',
                   display: 'flex',
@@ -189,11 +189,11 @@ export default function ContainersPage() {
                 {fullContainers.length > 0 && (
                   <div style={{ 
                     padding: '0.5rem',
-                    background: '#e8f5e9',
+                    background: 'var(--gray-50)',
                     borderBottom: '1px solid var(--gray-200)'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                      ✅ Completos: {fullContainers.length}
+                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--success)' }}>
+                      ✓ Completos: {fullContainers.length}
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                       {fullContainers.map(c => (
@@ -209,11 +209,11 @@ export default function ContainersPage() {
                 {partialContainers.length > 0 && (
                   <div style={{ 
                     padding: '0.5rem',
-                    background: '#fff3e0',
+                    background: 'var(--gray-100)',
                     borderRadius: '0 0 var(--radius) var(--radius)'
                   }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
-                      ⚠️ Parciales/Vacíos: {partialContainers.length}
+                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--warning)' }}>
+                      ⚠ Parciales/Vacíos: {partialContainers.length}
                     </div>
                     <div className="table-container" style={{ marginTop: '0.25rem' }}>
                       <table className="table" style={{ fontSize: '0.8rem' }}>
@@ -475,12 +475,12 @@ export default function ContainersPage() {
                       style={{ 
                         padding: '0.75rem', 
                         borderBottom: '1px solid var(--gray-200)',
-                        background: movement.type === 'CONSUMO' ? '#ffebee' : '#e8f5e9'
+                        background: movement.type === 'CONSUMO' ? 'var(--danger-light)' : 'var(--success)'
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
                         <strong>
-                          {movement.type === 'CONSUMO' ? '🔴 Consumo' : movement.type === 'RECARGA' ? '🟢 Recarga' : '🔵 Ajuste'}
+                          {movement.type === 'CONSUMO' ? 'Consumo' : movement.type === 'RECARGA' ? 'Recarga' : 'Ajuste'}
                         </strong>
                         <span style={{ color: 'var(--gray-600)' }}>
                           {new Date(movement.createdAt).toLocaleString('es-AR')}

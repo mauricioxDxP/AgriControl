@@ -150,7 +150,7 @@ export default function ProductsPage() {
       <div className="flex flex-between mb-2">
         <h2>Productos</h2>
         <button className="btn btn-primary" onClick={() => openModal()}>
-          + Nuevo Producto
+          + Nuevo
         </button>
       </div>
 
@@ -161,7 +161,7 @@ export default function ProductsPage() {
             <h3>No hay productos</h3>
             <p>Registrá tu primer producto para comenzar</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Crear Producto
+              + Nuevo
             </button>
           </div>
         </div>

@@ -169,7 +169,7 @@ export default function LotsPage() {
       <div className="flex flex-between mb-2">
         <h2>Lotes</h2>
         <button className="btn btn-primary" onClick={openModal} disabled={products.length === 0}>
-          + Nuevo Lote
+          + Nuevo
         </button>
       </div>
 
@@ -188,7 +188,7 @@ export default function LotsPage() {
             <h3>No hay lotes</h3>
             <p>Registrá tu primer lote para gestionar el stock</p>
             <button className="btn btn-primary mt-1" onClick={openModal}>
-              + Crear Lote
+              + Nuevo
             </button>
           </div>
         </div>
