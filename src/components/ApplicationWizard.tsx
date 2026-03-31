@@ -502,7 +502,7 @@ export default function ApplicationWizard({ isOpen, onClose, onSubmit, products,
                       type="button" 
                       className="btn btn-primary" 
                       onClick={addAnotherProduct}
-                      disabled={!wizardState.selectedProductId || !wizardState.currentQuantityUsed || availableProducts.length <= 1}
+                      disabled={!wizardState.selectedProductId || !wizardState.currentQuantityUsed || availableProducts.length === 0}
                       style={{ flex: 1 }}
                     >
                       + Agregar Otro

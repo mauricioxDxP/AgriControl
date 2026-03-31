@@ -120,15 +120,16 @@ export function useProducts() {
   };
 
   const deleteProduct = async (id: string) => {
-    if (isOnline) {
-      try {
-        await productsApi.delete(id);
-      } catch (err) {
-        // Ignorar error offline
+    try {
+      if (isOnline) {
+          await productsApi.delete(id);
       }
+      await dbHelpers.deleteProduct(id);
+      setProducts(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      console.error('Error deleting product:', err);
+      throw err;
     }
-    await dbHelpers.deleteProduct(id);
-    setProducts(prev => prev.filter(p => p.id !== id));
   };
 
   return { products, loading, error, addProduct, updateProduct, deleteProduct, refresh: loadProducts };

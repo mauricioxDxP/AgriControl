@@ -53,7 +53,15 @@ export const dbHelpers = {
   },
   
   async deleteProduct(id: string): Promise<void> {
-    await db.products.delete(id);
+    try {
+      // First delete related lots
+      await db.lots.where('productId').equals(id).delete();
+      // Then delete the product
+      await db.products.delete(id);
+    } catch (err) {
+      console.error('Error deleting product:', err);
+      throw err;
+    }
   },
 
   // Lotes

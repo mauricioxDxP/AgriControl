@@ -119,7 +119,14 @@ export default function ProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de eliminar este producto?')) {
-      await deleteProduct(id);
+      try {
+        await deleteProduct(id);
+      } catch (err: any) {
+        // Mostrar el mensaje exacto del backend
+        const errorMessage = err.message
+        // err?.response?.data?.error || 'Error al eliminar producto';
+        alert(errorMessage);
+      }
     }
   };
 

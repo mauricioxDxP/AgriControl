@@ -552,10 +552,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                   type="button" 
                   className="btn btn-primary" 
                   onClick={addAnotherProduct}
-                  disabled={!wizardState.selectedProductId || !wizardState.currentQuantity || availableProducts.length <= 1}
+                  disabled={!wizardState.selectedProductId || !wizardState.currentQuantity || availableProducts.length === 0}
                   style={{ flex: 1 }}
                 >
-                  + Agregar Otro
+                  + Agregar Outro
                 </button>
               </div>
               {wizardState.products.length > 0 && (

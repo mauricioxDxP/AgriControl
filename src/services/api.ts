@@ -26,9 +26,6 @@ if (import.meta.env.DEV) {
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
-  if (import.meta.env.DEV) {
-    console.log(`API Request: ${options?.method || 'GET'} ${url}`);
-  }
   
   try {
     const response = await fetch(url, {
@@ -40,8 +37,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     });
     
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorText}`);
+      const data = await response.json();
+      // throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorText}`);
+      throw data;
     }
     
     return response.json();
