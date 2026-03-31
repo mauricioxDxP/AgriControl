@@ -1,6 +1,6 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useOnlineStatus, useSync } from './hooks/useData';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ProductsPage from './pages/ProductsPage';
 import LotsPage from './pages/LotsPage';
 import FieldsPage from './pages/FieldsPage';
@@ -12,10 +12,28 @@ import TancadasPage from './pages/TancadasPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 
+// Lista de tamaños de fuente
+const fontSizes = [
+  { id: 'small', size: '14px' },
+  { id: 'medium', size: '16px' },
+  { id: 'large', size: '18px' },
+  { id: 'xlarge', size: '20px' },
+];
+
 function App() {
   const isOnline = useOnlineStatus();
   const { syncing, lastSync, sync } = useSync();
   const [menuOpen, setMenuOpen] = useState(false);
+
+  // Cargar tema y tamaño de fuente al iniciar
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('app-theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    
+    const savedFontSize = localStorage.getItem('app-font-size') || 'medium';
+    const size = fontSizes.find(f => f.id === savedFontSize)?.size || '16px';
+    document.documentElement.style.fontSize = size;
+  }, []);
 
   const navItems = [
     { path: '/', label: 'Dashboard', icon: '📊' },
