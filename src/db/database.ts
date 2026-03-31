@@ -32,7 +32,7 @@ export class AgroControlDB extends Dexie {
 }
 
 export const db = new AgroControlDB();
-
+(window as any).db = db;
 // Funciones helper para IndexedDB
 export const dbHelpers = {
   // Productos
@@ -45,7 +45,7 @@ export const dbHelpers = {
   },
   
   async addProduct(product: Product): Promise<string> {
-    return await db.products.add(product);
+    return await db.products.put(product);
   },
   
   async updateProduct(id: string, changes: Partial<Product>): Promise<number> {
@@ -66,7 +66,7 @@ export const dbHelpers = {
   },
   
   async addLot(lot: Lot): Promise<string> {
-    return await db.lots.add(lot);
+    return await db.lots.put(lot);
   },
   
   async updateLot(id: string, changes: Partial<Lot>): Promise<number> {
@@ -83,7 +83,7 @@ export const dbHelpers = {
   },
   
   async addField(field: Field): Promise<string> {
-    return await db.fields.add(field);
+    return await db.fields.put(field);
   },
   
   async updateField(id: string, changes: Partial<Field>): Promise<number> {
@@ -104,7 +104,7 @@ export const dbHelpers = {
   },
   
   async addApplication(application: Application): Promise<string> {
-    return await db.applications.add(application);
+    return await db.applications.put(application);
   },
   
   async updateApplication(id: string, changes: Partial<Application>): Promise<number> {
@@ -125,7 +125,7 @@ export const dbHelpers = {
   },
   
   async addMovement(movement: Movement): Promise<string> {
-    return await db.movements.add(movement);
+    return await db.movements.put(movement);
   },
   
   async deleteMovement(id: string): Promise<void> {
@@ -138,7 +138,7 @@ export const dbHelpers = {
   },
   
   async addApplicationLot(applicationLot: ApplicationLot): Promise<string> {
-    return await db.applicationLots.add(applicationLot);
+    return await db.applicationLots.put(applicationLot);
   },
 
   // Contenedores
@@ -151,7 +151,7 @@ export const dbHelpers = {
   },
 
   async addContainer(container: Container): Promise<string> {
-    return await db.containers.add(container);
+    return await db.containers.put(container);
   },
 
   async updateContainer(id: string, changes: Partial<Container>): Promise<number> {
@@ -199,7 +199,7 @@ export const dbHelpers = {
   },
 
   async addTancada(tancada: Tancada): Promise<string> {
-    return await db.tancadas.add(tancada);
+    return await db.tancadas.put(tancada);
   },
 
   async updateTancada(id: string, changes: Partial<Tancada>): Promise<number> {
@@ -217,7 +217,7 @@ export const dbHelpers = {
   },
 
   async addTancadaField(tancadaField: TancadaField): Promise<string> {
-    return await db.tancadaFields.add(tancadaField);
+    return await db.tancadaFields.put(tancadaField);
   },
 
   // Tanques
@@ -226,7 +226,7 @@ export const dbHelpers = {
   },
 
   async addTank(tank: Tank): Promise<string> {
-    return await db.tanks.add(tank);
+    return await db.tanks.put(tank);
   },
 
   async updateTank(id: string, changes: Partial<Tank>): Promise<number> {

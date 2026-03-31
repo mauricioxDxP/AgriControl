@@ -48,6 +48,7 @@ export interface Lot {
   expiryDate?: string;
   supplier?: string;
   initialStock: number;
+  lotCode?: string;
   containerType?: ContainerType;
   containerCapacity?: number;
   createdAt: string;
@@ -99,6 +100,7 @@ export interface ApplicationProduct {
   dosePerHectare?: number;
   concentration?: number;
   quantityUsed: number;
+  lotsUsed?: string; // JSON array of lots used: [{lotId, quantityUsed}]
   createdAt: string;
   synced: boolean;
 }
@@ -223,6 +225,8 @@ export interface TancadaProduct {
   product?: Product;
   concentration?: number;
   quantity: number;
+  lotsUsed?: string; // JSON array of lots used: [{lotId, quantityUsed}]
+  lotsData?: any[]; // Datos de lotes traidos del backend
   createdAt: string;
   synced: boolean;
 }

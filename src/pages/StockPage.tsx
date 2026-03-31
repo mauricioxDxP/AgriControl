@@ -235,7 +235,7 @@ export default function StockPage() {
               <table className="table">
                 <thead>
                   <tr>
-                    <th>Lote ID</th>
+                    <th>Lote</th>
                     <th>Fecha Ingreso</th>
                     <th>Vencimiento</th>
                     <th>Proveedor</th>
@@ -247,7 +247,13 @@ export default function StockPage() {
                 <tbody>
                   {lotsWithStock.map(lot => (
                     <tr key={lot.id}>
-                      <td><code>{lot.id.slice(0, 8)}</code></td>
+                      <td>
+                        {lot.lotCode ? (
+                          <span className="badge badge-info">{lot.lotCode}</span>
+                        ) : (
+                          <code>{lot.id.slice(0, 8)}</code>
+                        )}
+                      </td>
                       <td>{new Date(lot.entryDate).toLocaleDateString()}</td>
                       <td>
                         {lot.expiryDate ? (

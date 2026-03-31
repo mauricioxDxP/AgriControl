@@ -175,7 +175,10 @@ export function useLots(productId?: string) {
       entryDate: data.entryDate || new Date().toISOString(),
       expiryDate: data.expiryDate,
       supplier: data.supplier,
+      lotCode: data.lotCode,
       initialStock: data.initialStock || 0,
+      containerType: data.containerType,
+      containerCapacity: data.containerCapacity,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false
@@ -199,6 +202,27 @@ export function useLots(productId?: string) {
     }
   };
 
+  const updateLot = async (id: string, data: Partial<Lot>) => {
+    const updated = { ...data, updatedAt: new Date().toISOString(), synced: false };
+    
+    if (isOnline) {
+      try {
+        const result = await lotsApi.update(id, updated);
+        await dbHelpers.updateLot(id, result);
+        setLots(prev => prev.map(l => l.id === id ? result : l));
+        return result;
+      } catch {
+        await dbHelpers.updateLot(id, updated);
+        setLots(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l));
+        return { ...lots.find(l => l.id === id), ...updated };
+      }
+    } else {
+      await dbHelpers.updateLot(id, updated);
+      setLots(prev => prev.map(l => l.id === id ? { ...l, ...updated } : l));
+      return { ...lots.find(l => l.id === id), ...updated };
+    }
+  };
+
   const deleteLot = async (id: string) => {
     if (isOnline) {
       try {
@@ -209,7 +233,7 @@ export function useLots(productId?: string) {
     setLots(prev => prev.filter(l => l.id !== id));
   };
 
-  return { lots, loading, addLot, deleteLot, refresh: loadLots };
+  return { lots, loading, addLot, updateLot, deleteLot, refresh: loadLots };
 }
 
 // Hook para campos
@@ -675,6 +699,7 @@ export function useTancadas() {
         productId: p.productId,
         concentration: p.concentration,
         quantity: p.quantity,
+        lotsUsed: p.lots ? JSON.stringify(p.lots) : undefined,
         createdAt: new Date().toISOString(),
         synced: false
       })),
@@ -749,6 +774,7 @@ export function useTancadas() {
             productId: p.productId,
             concentration: p.concentration,
             quantity: p.quantity,
+            lotsUsed: p.lots ? JSON.stringify(p.lots) : undefined,
             createdAt: new Date().toISOString(),
             synced: false
           })),
@@ -782,6 +808,7 @@ export function useTancadas() {
           productId: p.productId,
           concentration: p.concentration,
           quantity: p.quantity,
+          lotsUsed: p.lots ? JSON.stringify(p.lots) : undefined,
           createdAt: new Date().toISOString(),
           synced: false
         })),

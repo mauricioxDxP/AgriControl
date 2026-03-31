@@ -1,23 +1,56 @@
 import { Product, Lot, Field, Application, Movement, SyncData, CreateApplicationInput, Container, Tancada, Tank } from '../types';
 
-// Use environment variable or fallback to relative path
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Use environment variable or detect from current location for mobile access
+const getApiBase = (): string => {
+  // If explicitly set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Otherwise, construct from current window location for mobile
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    // Running on mobile/remote device, use current host
+    return `${window.location.protocol}//${window.location.host}/api`;
+  }
+  // Default to relative path for local development
+  return '/api';
+};
+
+const API_BASE = getApiBase();
+
+// Debug log in development
+if (import.meta.env.DEV) {
+  console.log('API Base URL:', API_BASE);
+}
 
 // Helper para hacer requests
 async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers
-    }
-  });
+  const url = `${API_BASE}${endpoint}`;
   
-  if (!response.ok) {
-    throw new Error(`API Error: ${response.statusText}`);
+  if (import.meta.env.DEV) {
+    console.log(`API Request: ${options?.method || 'GET'} ${url}`);
   }
   
-  return response.json();
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      }
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`API Error ${response.status}: ${response.statusText} - ${errorText}`);
+    }
+    
+    return response.json();
+  } catch (error) {
+    if (error instanceof TypeError && error.message === 'Failed to fetch') {
+      throw new Error(`No se pudo conectar al servidor. Verifica que el backend esté corriendo en ${API_BASE}`);
+    }
+    throw error;
+  }
 }
 
 // API de Productos

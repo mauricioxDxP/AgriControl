@@ -250,53 +250,108 @@ export default function ApplicationsPage() {
           </div>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Campo</th>
-                <th>Productos</th>
-                <th>Agua</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {applications.map(app => (
-                <tr key={app.id}>
-                  <td>{formatDate(app.date)}</td>
-                  <td>
-                    <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
-                      {app.type}
-                    </span>
-                  </td>
-                  <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
-                  <td>
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="mobile-cards">
+            {applications.map(app => (
+              <div key={app.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">{formatDate(app.date)}</span>
+                  <span className={`card-mobile-badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
+                    {app.type}
+                  </span>
+                </div>
+                
+                <div className="card-mobile-content">
+                  <div className="card-mobile-section">
+                    <span className="card-mobile-label">Campo:</span>
+                    <span>{fields.find(f => f.id === app.fieldId)?.name || '-'}</span>
+                  </div>
+                  
+                  <div className="card-mobile-section">
+                    <span className="card-mobile-label">Productos:</span>
                     {app.applicationProducts?.map((ap, idx) => (
-                      <div key={idx} style={{ marginBottom: '0.25rem' }}>
-                        <span className="badge badge-primary">
-                          {ap.product?.name || '-'}
-                          {ap.dosePerHectare ? ` ${ap.dosePerHectare}${ap.product?.baseUnit}/ha` : ''}
-                          : {ap.quantityUsed} {ap.product?.baseUnit}
-                        </span>
-                      </div>
+                      <span key={idx} className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem', display: 'inline-block' }}>
+                        {ap.product?.name}: {ap.quantityUsed}{ap.product?.baseUnit}
+                      </span>
                     ))}
-                  </td>
-                  <td>{app.waterAmount ? `${app.waterAmount}L` : '-'}</td>
-                  <td>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(app.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
+                  </div>
+                  
+                  {app.waterAmount && (
+                    <div className="card-mobile-row">
+                      <div>
+                        <span className="card-mobile-label">Agua:</span>
+                        <span>{app.waterAmount}L</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="card-mobile-actions">
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(app.id)}
+                    style={{ width: '100%' }}
+                  >
+                    🗑️ Eliminar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla */}
+          <div className="table-container hide-mobile">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tipo</th>
+                  <th>Campo</th>
+                  <th>Productos</th>
+                  <th className="hide-mobile">Agua</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {applications.map(app => (
+                  <tr key={app.id}>
+                    <td>{formatDate(app.date)}</td>
+                    <td>
+                      <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
+                        {app.type}
+                      </span>
+                    </td>
+                    <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
+                    <td>
+                      {app.applicationProducts?.map((ap, idx) => (
+                        <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                          <span className="badge badge-primary">
+                            {ap.product?.name || '-'}
+                            {ap.dosePerHectare ? ` ${ap.dosePerHectare}${ap.product?.baseUnit}/ha` : ''}
+                            : {ap.quantityUsed} {ap.product?.baseUnit}
+                          </span>
+                        </div>
+                      ))}
+                    </td>
+                    <td className="hide-mobile">{app.waterAmount ? `${app.waterAmount}L` : '-'}</td>
+                    <td>
+                      <div className="action-buttons">
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(app.id)}
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal */}
@@ -508,7 +563,7 @@ export default function ApplicationsPage() {
                                         >
                                           {getProductLots(product.id).map(l => (
                                             <option key={l.id} value={l.id}>
-                                              Lote {l.id.slice(0, 8)}
+                                              {l.lotCode ? `Código: ${l.lotCode}` : `Lote ${l.id.slice(0, 8)}`}
                                             </option>
                                           ))}
                                         </select>

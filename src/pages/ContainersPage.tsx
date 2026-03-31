@@ -304,9 +304,10 @@ export default function ContainersPage() {
                     <option value="">Seleccionar lote...</option>
                     {lots.map(lot => {
                       const product = products.find(p => p.id === lot.productId);
+                      const lotLabel = lot.lotCode ? lot.lotCode : `Lote ${lot.id.slice(0, 8)}`;
                       return (
                         <option key={lot.id} value={lot.id}>
-                          Lote {lot.id.slice(0, 8)} [{product?.name || 'Sin producto'}]
+                          {lotLabel} [{product?.name || 'Sin producto'}]
                         </option>
                       );
                     })}

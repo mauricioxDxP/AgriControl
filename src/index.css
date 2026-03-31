@@ -488,3 +488,192 @@ body {
     font-size: 0.875rem;
   }
 }
+
+/* Estilos para botones de acciones en tablas */
+.action-buttons {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.action-buttons .btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  min-width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* En móviles, mostrar solo iconos en tablas */
+@media (max-width: 768px) {
+  .action-buttons .btn {
+    padding: 0.3rem 0.4rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Ocultar texto de botones en tablas cuando hay poco espacio */
+  .table .btn-sm span {
+    display: none;
+  }
+  
+  /* Ocultar columnas menos importantes en móvil */
+  .table .hide-mobile {
+    display: none;
+  }
+  
+  /* Hacer la tabla scrollable horizontalmente */
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .table {
+    min-width: 600px;
+  }
+  
+  /* Modal más responsivo en móvil */
+  .modal {
+    width: 95% !important;
+    max-width: none !important;
+    margin: 1rem;
+    padding: 1rem;
+  }
+  
+  /* Ajustar pre del resumen para móvil */
+  .modal-body pre {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  /* Botones del modal más grandes en móvil */
+  .modal-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .modal-footer .btn {
+    width: 100%;
+    margin: 0;
+  }
+}
+
+/* Vista móvil con cards - por defecto oculto */
+.mobile-cards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 0.5rem;
+  }
+  
+  .card-mobile {
+    background: var(--white);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  
+  .card-mobile-header {
+    background: var(--primary);
+    color: white;
+    padding: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-mobile-date {
+    font-weight: bold;
+  }
+  
+  .card-mobile-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+  }
+  
+  .card-mobile-badge.badge-primary {
+    background: var(--primary);
+    color: white;
+  }
+  
+  .card-mobile-badge.badge-secondary {
+    background: var(--secondary);
+    color: white;
+  }
+  
+  .card-mobile-content {
+    padding: 0.75rem;
+  }
+  
+  .card-mobile-section {
+    margin-bottom: 0.5rem;
+  }
+  
+  .card-mobile-label {
+    font-weight: bold;
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  
+  .card-mobile-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .card-mobile-row div {
+    flex: 1;
+  }
+  
+  .card-mobile-actions {
+    padding: 0.75rem;
+    background: var(--gray-100);
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  
+  .card-mobile-actions .btn {
+    flex: 1;
+    min-width: auto;
+    font-size: 0.8rem;
+    padding: 0.4rem 0.5rem;
+  }
+  
+  /* Ocultar tabla en móvil */
+  @media (max-width: 768px) {
+    .table-container {
+      display: none !important;
+    }
+    
+    .hide-mobile {
+      display: none !important;
+    }
+    
+    /* Ocultar cards en desktop y mostrar en móvil */
+    .mobile-cards {
+      display: flex;
+    }
+  }
+}
+
+/* En tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .action-buttons {
+    gap: 0.35rem;
+  }
+  
+  .action-buttons .btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+  }
+}

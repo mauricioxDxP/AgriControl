@@ -1,17 +1,20 @@
 import { useState } from 'react';
 import { useLots, useProducts, useContainers } from '../hooks/useData';
-import { ContainerType } from '../types';
+import { ContainerType, Lot } from '../types';
 
 export default function LotsPage() {
-  const { lots, loading, addLot, deleteLot } = useLots();
+  const { lots, loading, addLot, updateLot, deleteLot } = useLots();
   const { products } = useProducts();
   const { addContainer } = useContainers();
   const [showModal, setShowModal] = useState(false);
+  const [editModal, setEditModal] = useState(false);
+  const [editingLot, setEditingLot] = useState<Lot | null>(null);
   const [formData, setFormData] = useState({
     productId: '',
     entryDate: new Date().toISOString().split('T')[0],
     expiryDate: '',
     supplier: '',
+    lotCode: '',
     initialStock: '',
     // Container info
     containerType: 'BIDON' as ContainerType,
@@ -21,12 +24,20 @@ export default function LotsPage() {
     partialQuantity: ''
   });
 
+  const [editFormData, setEditFormData] = useState({
+    expiryDate: '',
+    supplier: '',
+    lotCode: '',
+    initialStock: ''
+  });
+
   const resetForm = () => {
     setFormData({
       productId: '',
       entryDate: new Date().toISOString().split('T')[0],
       expiryDate: '',
       supplier: '',
+      lotCode: '',
       initialStock: '',
       containerType: 'BIDON',
       containerCapacity: '',
@@ -41,6 +52,32 @@ export default function LotsPage() {
     setShowModal(true);
   };
 
+  const openEditModal = (lot: Lot) => {
+    setEditingLot(lot);
+    setEditFormData({
+      expiryDate: lot.expiryDate ? lot.expiryDate.split('T')[0] : '',
+      supplier: lot.supplier || '',
+      lotCode: lot.lotCode || '',
+      initialStock: lot.initialStock.toString()
+    });
+    setEditModal(true);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingLot) return;
+
+    await updateLot(editingLot.id, {
+      expiryDate: editFormData.expiryDate ? new Date(editFormData.expiryDate).toISOString() : undefined,
+      supplier: editFormData.supplier || undefined,
+      lotCode: editFormData.lotCode || undefined,
+      initialStock: parseFloat(editFormData.initialStock) || 0
+    });
+
+    setEditModal(false);
+    setEditingLot(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -53,6 +90,7 @@ export default function LotsPage() {
       entryDate: new Date(formData.entryDate).toISOString(),
       expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : undefined,
       supplier: formData.supplier || undefined,
+      lotCode: formData.lotCode || undefined,
       initialStock: stock,
       containerType: formData.containerType as any,
       containerCapacity: containerCapacity > 0 ? containerCapacity : undefined
@@ -159,6 +197,7 @@ export default function LotsPage() {
           <table className="table">
             <thead>
               <tr>
+                <th>Código</th>
                 <th>Producto</th>
                 <th>Fecha Ingreso</th>
                 <th>Vencimiento</th>
@@ -169,9 +208,16 @@ export default function LotsPage() {
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody>
+              <tbody>
               {lots.map(lot => (
                 <tr key={lot.id}>
+                  <td>
+                    {lot.lotCode ? (
+                      <span className="badge badge-info">{lot.lotCode}</span>
+                    ) : (
+                      <span style={{ color: 'var(--gray-400)' }}>-</span>
+                    )}
+                  </td>
                   <td><strong>{getProductName(lot.productId)}</strong></td>
                   <td>{formatDate(lot.entryDate)}</td>
                   <td>
@@ -185,11 +231,11 @@ export default function LotsPage() {
                   <td>{lot.supplier || '-'}</td>
                   <td>{lot.initialStock}</td>
                   <td>
-                    {lot.containerType && lot.containerCapacity ? (
+                    {lot.containerCapacity && (
                       <span className="badge badge-info">
-                        {lot.containerType} {lot.containerCapacity}{products.find(p => p.id === lot.productId)?.baseUnit || 'L'}
+                        {(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{products.find(p => p.id === lot.productId)?.baseUnit || 'L'}
                       </span>
-                    ) : '-'}
+                    )}
                   </td>
                   <td>
                     {isExpired(lot.expiryDate) ? (
@@ -199,6 +245,13 @@ export default function LotsPage() {
                     )}
                   </td>
                   <td>
+                    <button 
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => openEditModal(lot)}
+                      style={{ marginRight: '0.5rem' }}
+                    >
+                      Editar
+                    </button>
                     <button 
                       className="btn btn-danger btn-sm"
                       onClick={() => handleDelete(lot.id)}
@@ -213,7 +266,7 @@ export default function LotsPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Create Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
@@ -276,6 +329,17 @@ export default function LotsPage() {
                     value={formData.supplier}
                     onChange={e => setFormData({ ...formData, supplier: e.target.value })}
                     placeholder="Nombre del proveedor"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Código de Lote</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.lotCode}
+                    onChange={e => setFormData({ ...formData, lotCode: e.target.value })}
+                    placeholder="Ej: LOTE-2024-001"
                   />
                 </div>
 
@@ -446,6 +510,104 @@ export default function LotsPage() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Crear Lote
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal && editingLot && (
+        <div className="modal-overlay" onClick={() => setEditModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Editar Lote</h3>
+              <button 
+                className="btn btn-icon btn-secondary"
+                onClick={() => setEditModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Producto</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={products.find(p => p.id === editingLot.productId)?.name || ''} 
+                    disabled 
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Fecha Ingreso</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={new Date(editingLot.entryDate).toLocaleDateString()} 
+                      disabled 
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Fecha Vencimiento</label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={editFormData.expiryDate}
+                      onChange={e => setEditFormData({ ...editFormData, expiryDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Proveedor</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editFormData.supplier}
+                    onChange={e => setEditFormData({ ...editFormData, supplier: e.target.value })}
+                    placeholder="Nombre del proveedor"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Código de Lote</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={editFormData.lotCode}
+                    onChange={e => setEditFormData({ ...editFormData, lotCode: e.target.value })}
+                    placeholder="Ej: LOTE-2024-001"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Stock ({products.find(p => p.id === editingLot.productId)?.baseUnit || 'L'})</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    value={editFormData.initialStock}
+                    onChange={e => setEditFormData({ ...editFormData, initialStock: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => setEditModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Guardar Cambios
                 </button>
               </div>
             </form>

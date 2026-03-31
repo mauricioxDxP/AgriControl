@@ -36,6 +36,80 @@ export default function TancadasPage() {
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
 
+  // Resumen modal
+  const [showResumen, setShowResumen] = useState(false);
+  const [resumenTancada, setResumenTancada] = useState<Tancada | null>(null);
+
+  // Generar texto de resumen para una tancada
+  const generarResumenTexto = (tancada: Tancada): string => {
+    const totalHectareas = tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0;
+    
+    let texto = `FECHA: ${formatDate(tancada.date)}\n`;
+    texto += `HECTÁREAS: ${totalHectareas} ha\n`;
+    texto += `AGUA: ${tancada.waterAmount} L\n`;
+    texto += `\nPRODUCTOS:\n`;
+    
+    // Los lotes se almacenan en lotsUsed de cada tancadaProduct
+    tancada.tancadaProducts?.forEach((tp) => {
+      const producto = tp.product?.name || 'Sin nombre';
+      const cantidad = tp.quantity;
+      const unidad = tp.product?.baseUnit || 'L';
+      
+      // Buscar información del lote desde lotsData (del backend) o lista local
+      let totalContainerCapacity = 0;
+      
+      // Primer intento: usar lotsData del backend
+      const lotsData = (tp as any).lotsData;
+      if (lotsData && Array.isArray(lotsData) && lotsData.length > 0) {
+        const validLots = lotsData.filter((l: any) => l.containerCapacity);
+        if (validLots.length > 0) {
+          totalContainerCapacity = validLots.reduce((sum: number, l: any) => sum + (l.containerCapacity || 0), 0);
+        }
+      }
+      
+      // Segundo intento: buscar en la lista local de lotes
+      if (totalContainerCapacity === 0 && tp.lotsUsed) {
+        try {
+          const lotsUsed = typeof tp.lotsUsed === 'string' ? JSON.parse(tp.lotsUsed) : tp.lotsUsed;
+          if (Array.isArray(lotsUsed) && lotsUsed.length > 0) {
+            const lotIds = lotsUsed.map((l: any) => l.lotId);
+            const lotsInfo = lots.filter(l => lotIds.includes(l.id) && l.containerCapacity);
+            if (lotsInfo.length > 0) {
+              totalContainerCapacity = lotsInfo.reduce((sum, l) => sum + (l.containerCapacity || 0), 0);
+            }
+          }
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
+      
+      // Formato: Producto capacidadUnidad x cantidadUnidad
+      if (totalContainerCapacity > 0) {
+        texto += `• ${producto} x${totalContainerCapacity}${unidad.toLowerCase()} ${cantidad}${unidad.toLowerCase()}\n`;
+      } else {
+        texto += `• ${producto} ${cantidad} ${unidad}\n`;
+      }
+    });
+    
+    // Agregar campos tratados
+    if (tancada.tancadaFields && tancada.tancadaFields.length > 0) {
+      texto += `\nCAMPOS:\n`;
+      tancada.tancadaFields.forEach((tf) => {
+        const campoNombre = tf.field?.name || 'Sin nombre';
+        const hectareas = tf.hectaresTreated;
+        const totalCampo = tf.field?.area || hectareas;
+        texto += `• ${campoNombre}: ${hectareas}/${totalCampo} ha\n`;
+      });
+    }
+    
+    return texto;
+  };
+
+  const abrirResumen = (tancada: Tancada) => {
+    setResumenTancada(tancada);
+    setShowResumen(true);
+  };
+
   // Function to fetch lot stocks
   const fetchLotStocks = async () => {
     const stocks: Record<string, number> = {};
@@ -110,13 +184,24 @@ export default function TancadasPage() {
     });
     
     // Load products
-    setSelectedProducts(tancada.tancadaProducts?.map(p => ({
-      productId: p.productId,
-      concentration: p.concentration?.toString() || '',
-      quantity: p.quantity.toString(),
-      dosePerHectare: '',
-      lots: []
-    })) || []);
+    setSelectedProducts(tancada.tancadaProducts?.map(p => {
+      // Parse lotsUsed if available
+      let parsedLots: { lotId: string; quantityUsed: number }[] = [];
+      if (p.lotsUsed) {
+        try {
+          parsedLots = typeof p.lotsUsed === 'string' ? JSON.parse(p.lotsUsed) : p.lotsUsed;
+        } catch (e) {
+          parsedLots = [];
+        }
+      }
+      return {
+        productId: p.productId,
+        concentration: p.concentration?.toString() || '',
+        quantity: p.quantity.toString(),
+        dosePerHectare: '',
+        lots: parsedLots
+      };
+    }) || []);
     
     // Load field distribution
     setFieldDistribution(tancada.tancadaFields?.map(f => ({
@@ -382,64 +467,150 @@ export default function TancadasPage() {
           </div>
         </div>
       ) : (
-        <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Fecha</th>
-                <th>Tanques</th>
-                <th>Productos</th>
-                <th>Agua</th>
-                <th>Campos Tratados</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tancadas.map(tancada => (
-                <tr key={tancada.id}>
-                  <td>{formatDate(tancada.date)}</td>
-                  <td>{tancada.tankCapacity} L</td>
-                  <td>
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="mobile-cards">
+            {tancadas.map(tancada => (
+              <div key={tancada.id} className="card-mobile">
+                <div className="card-mobile-header">
+                  <span className="card-mobile-date">{formatDate(tancada.date)}</span>
+                  <span className="card-mobile-badge">{tancada.tankCapacity}L</span>
+                </div>
+                
+                <div className="card-mobile-content">
+                  <div className="card-mobile-section">
+                    <span className="card-mobile-label">Productos:</span>
                     {tancada.tancadaProducts?.map((tp, idx) => (
-                      <div key={idx}>
-                        <span className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
-                          {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {tp.product?.baseUnit}
-                        </span>
-                      </div>
+                      <span key={idx} className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
+                        {tp.product?.name}: {tp.quantity}{tp.product?.baseUnit}
+                      </span>
                     ))}
-                  </td>
-                  <td>
-                    {tancada.tancadaFields?.map((tf, idx) => (
-                      <div key={idx} style={{ marginBottom: '0.25rem' }}>
-                        <span className="badge badge-info" style={{ marginRight: '0.25rem' }}>
-                          {tf.field?.name || 'Campo'}
+                  </div>
+                  
+                  <div className="card-mobile-row">
+                    <div>
+                      <span className="card-mobile-label">Agua:</span>
+                      <span>{tancada.waterAmount} L</span>
+                    </div>
+                    <div>
+                      <span className="card-mobile-label">Hás:</span>
+                      <span>{tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0} ha</span>
+                    </div>
+                  </div>
+                  
+                  {tancada.tancadaFields && tancada.tancadaFields.length > 0 && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Campos:</span>
+                      {tancada.tancadaFields.map((tf, idx) => (
+                        <span key={idx} className="badge badge-info" style={{ marginRight: '0.25rem' }}>
+                          {tf.field?.name}: {tf.hectaresTreated}ha
                         </span>
-                        <span style={{ fontSize: '0.75rem' }}>
-                          {tf.hectaresTreated}/{tf.field?.area || tf.hectaresTreated} ha
-                        </span>
-                      </div>
-                    ))}
-                  </td>
-                  <td>
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => handleEdit(tancada)}
-                      style={{ marginRight: '0.5rem' }}
-                    >
-                      Editar
-                    </button>
-                    <button 
-                      className="btn btn-danger btn-sm"
-                      onClick={() => handleDelete(tancada.id)}
-                    >
-                      Eliminar
-                    </button>
-                  </td>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                <div className="card-mobile-actions">
+                  <button 
+                    className="btn btn-info btn-sm"
+                    onClick={() => abrirResumen(tancada)}
+                  >
+                    📋 Resumen
+                  </button>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => handleEdit(tancada)}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button 
+                    className="btn btn-danger btn-sm"
+                    onClick={() => handleDelete(tancada.id)}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla */}
+          <div className="table-container hide-mobile">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Tanques</th>
+                  <th>Productos</th>
+                  <th className="hide-mobile">Agua</th>
+                  <th>Hás</th>
+                  <th className="hide-mobile">Campos Tratados</th>
+                  <th>Acciones</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {tancadas.map(tancada => (
+                  <tr key={tancada.id}>
+                    <td>{formatDate(tancada.date)}</td>
+                    <td>{tancada.tankCapacity} L</td>
+                    <td>
+                      {tancada.tancadaProducts?.map((tp, idx) => (
+                        <div key={idx}>
+                          <span className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
+                            {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {tp.product?.baseUnit}
+                          </span>
+                        </div>
+                      ))}
+                    </td>
+                    <td className="hide-mobile">{tancada.waterAmount} L</td>
+                    <td>
+                      <strong>
+                        {tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0} ha
+                      </strong>
+                    </td>
+                    <td className="hide-mobile">
+                      {tancada.tancadaFields?.map((tf, idx) => (
+                        <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                          <span className="badge badge-info" style={{ marginRight: '0.25rem' }}>
+                            {tf.field?.name || 'Campo'}
+                          </span>
+                          <span style={{ fontSize: '0.75rem' }}>
+                            {tf.hectaresTreated}/{tf.field?.area || tf.hectaresTreated} ha
+                          </span>
+                        </div>
+                      ))}
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <button 
+                          className="btn btn-info btn-sm"
+                          onClick={() => abrirResumen(tancada)}
+                          title="Resumen"
+                        >
+                          📋
+                        </button>
+                        <button 
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleEdit(tancada)}
+                          title="Editar"
+                        >
+                          ✏️
+                        </button>
+                        <button 
+                          className="btn btn-danger btn-sm"
+                          onClick={() => handleDelete(tancada.id)}
+                          title="Eliminar"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* Modal de Tancada */}
@@ -758,7 +929,7 @@ export default function TancadasPage() {
                                         >
                                           {getProductLots(product.id).map(l => (
                                             <option key={l.id} value={l.id}>
-                                              Lote {l.id.slice(0, 8)}
+                                              {l.lotCode ? `Código: ${l.lotCode}` : `Lote ${l.id.slice(0, 8)}`}
                                             </option>
                                           ))}
                                         </select>
@@ -848,6 +1019,87 @@ export default function TancadasPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Resumen en Texto */}
+      {showResumen && resumenTancada && (
+        <div className="modal-overlay" onClick={() => setShowResumen(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Resumen de Tancada</h3>
+              <button 
+                className="btn btn-icon btn-secondary"
+                onClick={() => setShowResumen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <pre style={{ 
+                whiteSpace: 'pre-wrap', 
+                fontFamily: 'monospace',
+                background: 'var(--gray-100)',
+                padding: '1rem',
+                borderRadius: 'var(--radius)',
+                fontSize: '0.9rem',
+                lineHeight: '1.6'
+              }}>
+                {generarResumenTexto(resumenTancada)}
+              </pre>
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: '1rem', width: '100%' }}
+                onClick={async () => {
+                  const text = generarResumenTexto(resumenTancada);
+                  
+                  // Try clipboard API first (works on HTTPS or localhost)
+                  if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      alert('Resumen copiado al portapapeles');
+                      return;
+                    } catch (e) {
+                      console.log('Clipboard API failed, trying fallback');
+                    }
+                  }
+                  
+                  // Fallback for HTTP or non-secure contexts
+                  try {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    textArea.style.top = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    
+                    if (successful) {
+                      alert('Resumen copiado al portapapeles');
+                    } else {
+                      alert('No se pudo copiar. Podés seleccionar el texto y copiarlo manualmente.');
+                    }
+                  } catch (err) {
+                    alert('No se pudo copiar. Seleccioná el texto y copialo manualmente.');
+                  }
+                }}
+              >
+                📋 Copiar al Portapapeles
+              </button>
+            </div>
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={() => setShowResumen(false)}
+              >
+                Cerrar
+              </button>
+            </div>
           </div>
         </div>
       )}
