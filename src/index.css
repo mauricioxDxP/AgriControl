@@ -191,29 +191,79 @@ body {
 /* Navigation */
 .nav-bar {
   display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   background: var(--gray-100);
   border-bottom: 1px solid var(--gray-300);
-  overflow-x: auto;
   position: sticky;
   top: 56px;
   z-index: 99;
 }
 
-.nav-link {
+/* Desktop nav container */
+.nav-desktop {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* Row 1: Group tabs */
+.nav-tabs {
+  display: flex;
+  flex-direction: row;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--gray-200);
+}
+
+.nav-tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--gray-600);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+
+.nav-tab:hover {
+  background: var(--gray-200);
+  color: var(--primary);
+}
+
+.nav-tab.active {
+  border-bottom-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Row 2: Items of active group */
+.nav-items {
+  display: flex;
+  flex-direction: row;
+  gap: 0.25rem;
   padding: 0.5rem 1rem;
+  overflow-x: auto;
+}
+
+/* Navigation links */
+.nav-link {
+  padding: 0.4rem 0.75rem;
   border-radius: var(--radius);
   text-decoration: none;
   color: var(--gray-700);
   font-weight: 500;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   white-space: nowrap;
   transition: all 0.2s ease;
 }
 
 .nav-link:hover {
-  background: var(--gray-100);
+  background: var(--gray-200);
   color: var(--primary);
 }
 
@@ -292,10 +342,37 @@ body {
     transform: translateX(0);
   }
   
-  .nav-link {
-    padding: 0.75rem 1rem;
-    font-size: 1rem;
-    border-radius: var(--radius);
+  /* Hide desktop nav on mobile */
+  .nav-desktop {
+    display: none;
+  }
+  
+  .nav-mobile-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  
+  .nav-mobile-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .nav-mobile-header {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    letter-spacing: 0.05em;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  .nav-mobile-group .nav-link {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.9rem;
   }
   
   .nav-overlay {

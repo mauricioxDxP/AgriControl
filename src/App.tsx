@@ -11,6 +11,8 @@ import TanksPage from './pages/TanksPage';
 import TancadasPage from './pages/TancadasPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
+import ProductSettingsPage from './pages/ProductSettingsPage';
+import OperationSettingsPage from './pages/OperationSettingsPage';
 
 // Lista de tamaños de fuente
 const fontSizes = [
@@ -35,18 +37,31 @@ function App() {
     document.documentElement.style.fontSize = size;
   }, []);
 
+  const [activeGroup, setActiveGroup] = useState('inventario');
+
   const navItems = [
-    { path: '/', label: 'Dashboard', icon: '📊' },
-    { path: '/products', label: 'Productos', icon: '📦' },
-    { path: '/lots', label: 'Lotes', icon: '🔖' },
-    { path: '/containers', label: 'Contenedores', icon: '🫙' },
-    { path: '/stock', label: 'Stock', icon: '📈' },
-    { path: '/fields', label: 'Campos', icon: '🌾' },
-    { path: '/tanks', label: 'Tanques', icon: '🛢️' },
-    { path: '/tancadas', label: 'Tancadas', icon: '🚿' },
-    { path: '/applications', label: 'Aplicaciones', icon: '🚁' },
-    { path: '/settings', label: 'Configuración', icon: '⚙️' },
+    // Inventory
+    { path: '/products', label: 'Productos', icon: '📦', group: 'inventario' },
+    { path: '/lots', label: 'Lotes', icon: '🔖', group: 'inventario' },
+    { path: '/containers', label: 'Contenedores', icon: '🫙', group: 'inventario' },
+    { path: '/stock', label: 'Stock', icon: '📈', group: 'inventario' },
+    { path: '/settings/products', label: 'Config Productos', icon: '⚙️', group: 'inventario' },
+    // Operations
+    { path: '/fields', label: 'Campos', icon: '🌾', group: 'operaciones' },
+    { path: '/tanks', label: 'Tanques', icon: '🛢️', group: 'operaciones' },
+    { path: '/tancadas', label: 'Tancadas', icon: '🚿', group: 'operaciones' },
+    { path: '/applications', label: 'Aplicaciones', icon: '🚁', group: 'operaciones' },
+    { path: '/settings/operations', label: 'Config Operaciones', icon: '⚙️', group: 'operaciones' },
+    // System
+    { path: '/', label: 'Dashboard', icon: '📊', group: 'sistema' },
+    { path: '/settings', label: 'Configuración', icon: '⚙️', group: 'sistema' },
   ];
+
+  const groupLabels: Record<string, { label: string, icon: string }> = {
+    inventario: { label: 'Inventario', icon: '📦' },
+    operaciones: { label: 'Operaciones', icon: '🚜' },
+    sistema: { label: 'Sistema', icon: '⚙️' },
+  };
 
   return (
     <div className="app-container">
@@ -85,17 +100,60 @@ function App() {
       </button>
 
       <nav className={`nav-bar ${menuOpen ? 'open' : ''}`}>
-        {navItems.map(item => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
-            end={item.path === '/'}
-            onClick={() => setMenuOpen(false)}
-          >
-            {item.icon} {item.label}
-          </NavLink>
-        ))}
+        {/* Mobile: show all groups expanded */}
+        <div className="nav-mobile-sections hide-desktop">
+          {Object.entries(groupLabels).map(([groupKey, { label, icon }]) => (
+            <div key={groupKey} className="nav-mobile-group">
+              <div className="nav-mobile-header">
+                {icon} {label}
+              </div>
+              {navItems
+                .filter(item => item.group === groupKey)
+                .map(item => (
+                  <NavLink
+                    key={item.path}
+                    to={item.path}
+                    className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                    end={item.path === '/'}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.icon} {item.label}
+                  </NavLink>
+                ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop: tabs + items */}
+        <div className="nav-desktop hide-mobile">
+          <div className="nav-tabs">
+            {Object.entries(groupLabels).map(([groupKey, { label, icon }]) => (
+              <button
+                key={groupKey}
+                className={`nav-tab ${activeGroup === groupKey ? 'active' : ''}`}
+                onClick={() => setActiveGroup(groupKey)}
+              >
+                {icon} {label}
+              </button>
+            ))}
+          </div>
+          
+          <div className="nav-items">
+            {navItems
+              .filter(item => item.group === activeGroup)
+              .map(item => (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}
+                  end={item.path === '/'}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  {item.icon} {item.label}
+                </NavLink>
+              ))}
+          </div>
+        </div>
       </nav>
 
       {/* Overlay para cerrar menú */}
@@ -117,6 +175,8 @@ function App() {
           <Route path="/tanks" element={<TanksPage />} />
           <Route path="/tancadas" element={<TancadasPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings/products" element={<ProductSettingsPage />} />
+          <Route path="/settings/operations" element={<OperationSettingsPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

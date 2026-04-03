@@ -22,6 +22,7 @@ interface WizardState {
   currentQuantity: string;
   currentLotId: string;
   currentLotQuantity: string;
+  autoDosage: boolean;
 }
 
 interface TancadaWizardProps {
@@ -59,7 +60,11 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     currentConcentrationPerLiter: '',
     currentQuantity: '',
     currentLotId: '',
-    currentLotQuantity: ''
+    currentLotQuantity: '',
+    autoDosage: (() => {
+      const saved = localStorage.getItem('auto-dosage');
+      return saved !== null ? saved === 'true' : false;
+    })()
   };
 
   const [wizardState, setWizardState] = useState<WizardState>(initialState);
@@ -137,7 +142,11 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         currentConcentrationPerLiter: '',
         currentQuantity: '',
         currentLotId: '',
-        currentLotQuantity: ''
+        currentLotQuantity: '',
+        autoDosage: (() => {
+          const saved = localStorage.getItem('auto-dosage');
+          return saved !== null ? saved === 'true' : false;
+        })()
       });
     } else {
       setWizardState(initialState);
@@ -191,24 +200,26 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     const totalHa = parseFloat(wizardState.totalHectares) || 0;
     const waterAmount = parseFloat(wizardState.waterAmount) || 0;
     
-    // Calcular cantidad según doseType
+    // Calcular cantidad según doseType solo si autoDosage está activo
     let quantity = 0;
     const doseType = selectedProduct?.doseType || 'PER_HECTARE';
     
-    if (doseType === 'CONCENTRATION') {
-      // concentrationPerLiter (cc/L) * litros de agua / 1000 = litros de producto
-      const concPerLiter = parseFloat(wizardState.currentConcentrationPerLiter) || selectedProduct?.concentrationPerLiter || 0;
-      quantity = (concPerLiter * waterAmount) / 1000;
-    } else {
-      // dosePerHectare * hectáreas (considerando conversión de unidad)
-      const dose = parseFloat(wizardState.currentDosePerHectare) || selectedProduct?.dosePerHectareMin || 0;
-      // Convertir la dosis a la unidad base del producto
-      const convertedDose = convertDoseToBaseUnit(
-        dose, 
-        selectedProduct?.doseUnit, 
-        selectedProduct?.baseUnit || 'L'
-      );
-      quantity = totalHa * convertedDose;
+    if (wizardState.autoDosage) {
+      if (doseType === 'CONCENTRATION') {
+        // concentrationPerLiter (cc/L) * litros de agua / 1000 = litros de producto
+        const concPerLiter = parseFloat(wizardState.currentConcentrationPerLiter) || selectedProduct?.concentrationPerLiter || 0;
+        quantity = (concPerLiter * waterAmount) / 1000;
+      } else {
+        // dosePerHectare * hectáreas (considerando conversión de unidad)
+        const dose = parseFloat(wizardState.currentDosePerHectare) || selectedProduct?.dosePerHectareMin || 0;
+        // Convertir la dosis a la unidad base del producto
+        const convertedDose = convertDoseToBaseUnit(
+          dose, 
+          selectedProduct?.doseUnit, 
+          selectedProduct?.baseUnit || 'L'
+        );
+        quantity = totalHa * convertedDose;
+      }
     }
     
     // Si el usuario modificó la cantidad manualmente, usar esa
@@ -462,25 +473,28 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                   const totalHa = parseFloat(wizardState.totalHectares) || 0;
                   const waterAmount = parseFloat(wizardState.waterAmount) || 0;
                   
-                  // Calcular cantidad según doseType
+                  // Calcular cantidad según doseType solo si autoDosage está activo
                   let suggestedQuantity = '';
-                  const doseType = product?.doseType || 'PER_HECTARE';
                   
-                  if (doseType === 'CONCENTRATION') {
-                    const concPerLiter = product?.concentrationPerLiter || 0;
-                    if (waterAmount > 0 && concPerLiter > 0) {
-                      suggestedQuantity = ((concPerLiter * waterAmount) / 1000).toFixed(2);
-                    }
-                  } else {
-                    const dose = product?.dosePerHectareMin || 0;
-                    if (totalHa > 0 && dose > 0) {
-                      // Convertir la dosis a la unidad base del producto
-                      const convertedDose = convertDoseToBaseUnit(
-                        dose, 
-                        product?.doseUnit, 
-                        product?.baseUnit || 'L'
-                      );
-                      suggestedQuantity = (totalHa * convertedDose).toFixed(2);
+                  if (wizardState.autoDosage) {
+                    const doseType = product?.doseType || 'PER_HECTARE';
+                    
+                    if (doseType === 'CONCENTRATION') {
+                      const concPerLiter = product?.concentrationPerLiter || 0;
+                      if (waterAmount > 0 && concPerLiter > 0) {
+                        suggestedQuantity = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+                      }
+                    } else {
+                      const dose = product?.dosePerHectareMin || 0;
+                      if (totalHa > 0 && dose > 0) {
+                        // Convertir la dosis a la unidad base del producto
+                        const convertedDose = convertDoseToBaseUnit(
+                          dose, 
+                          product?.doseUnit, 
+                          product?.baseUnit || 'L'
+                        );
+                        suggestedQuantity = (totalHa * convertedDose).toFixed(2);
+                      }
                     }
                   }
                   
@@ -488,8 +502,8 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                     ...wizardState, 
                     selectedProductId: productId,
                     currentConcentration: product?.concentration?.toString() || '',
-                    currentDosePerHectare: product?.dosePerHectareMin?.toString() || '',
-                    currentConcentrationPerLiter: product?.concentrationPerLiter?.toString() || '',
+                    currentDosePerHectare: wizardState.autoDosage ? (product?.dosePerHectareMin?.toString() || '') : '',
+                    currentConcentrationPerLiter: wizardState.autoDosage ? (product?.concentrationPerLiter?.toString() || '') : '',
                     currentQuantity: suggestedQuantity
                   });
                 }}>
@@ -512,60 +526,72 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                     <input type="number" step="0.1" className="form-input" value={wizardState.currentConcentration} onChange={e => setWizardState({ ...wizardState, currentConcentration: e.target.value })} placeholder="Ej: 5" />
                   </div>
 
-                  {doseType === 'PER_HECTARE' ? (
-                    // Campos para dosificación por hectárea
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Dosis/Ha ({selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha)</label>
-                        <input type="number" step="0.01" className="form-input" value={wizardState.currentDosePerHectare} onChange={e => {
-                          const dose = parseFloat(e.target.value) || 0;
-                          const ha = parseFloat(wizardState.totalHectares) || 0;
-                          // Convertir dosis a unidad base para el cálculo
-                          const convertedDose = convertDoseToBaseUnit(dose, selectedProduct?.doseUnit, selectedProduct?.baseUnit || 'L');
-                          setWizardState({ 
-                            ...wizardState, 
-                            currentDosePerHectare: e.target.value,
-                            currentQuantity: ha > 0 && dose > 0 ? (ha * convertedDose).toFixed(2) : ''
-                          });
-                        }} placeholder={`Min: ${selectedProduct?.dosePerHectareMin || '-'} - Max: ${selectedProduct?.dosePerHectareMax || '-'}`} />
-                        {selectedProduct?.dosePerHectareMin && selectedProduct?.dosePerHectareMax && (
-                          <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
-                            Rango recomendado: {selectedProduct?.dosePerHectareMin}-{selectedProduct?.dosePerHectareMax} {selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha
-                          </span>
-                        )}
-                      </div>
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
-                        <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
-                      </div>
-                    </div>
-                  ) : (
-                    // Campos para dosificación por concentración (cc/L)
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Concentración (cc/L)</label>
-                        <input type="number" step="0.1" className="form-input" value={wizardState.currentConcentrationPerLiter} onChange={e => {
-                          const conc = parseFloat(e.target.value) || 0;
-                          const water = parseFloat(wizardState.waterAmount) || 0;
-                          setWizardState({ 
-                            ...wizardState, 
-                            currentConcentrationPerLiter: e.target.value,
-                            currentQuantity: water > 0 && conc > 0 ? ((conc * water) / 1000).toFixed(2) : ''
-                          });
-                        }} placeholder={`Default: ${selectedProduct?.concentrationPerLiter || '-'}`} />
-                        {selectedProduct?.concentrationPerLiter && (
-                          <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
-                            Producto: {selectedProduct?.concentrationPerLiter} cc/L
-                          </span>
-                        )}
-                        <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>
-                          Formula: cc/L × L agua ÷ 1000 = L producto
-                        </span>
-                      </div>
-                      <div className="form-group" style={{ flex: 1 }}>
-                        <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
-                        <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
-                      </div>
+                  {wizardState.autoDosage && (
+                    <>
+                      {doseType === 'PER_HECTARE' ? (
+                        // Campos para dosificación por hectárea
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label className="form-label">Dosis/Ha ({selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha)</label>
+                            <input type="number" step="0.01" className="form-input" value={wizardState.currentDosePerHectare} onChange={e => {
+                              const dose = parseFloat(e.target.value) || 0;
+                              const ha = parseFloat(wizardState.totalHectares) || 0;
+                              // Convertir dosis a unidad base para el cálculo
+                              const convertedDose = convertDoseToBaseUnit(dose, selectedProduct?.doseUnit, selectedProduct?.baseUnit || 'L');
+                              setWizardState({ 
+                                ...wizardState, 
+                                currentDosePerHectare: e.target.value,
+                                currentQuantity: ha > 0 && dose > 0 ? (ha * convertedDose).toFixed(2) : ''
+                              });
+                            }} placeholder={`Min: ${selectedProduct?.dosePerHectareMin || '-'} - Max: ${selectedProduct?.dosePerHectareMax || '-'}`} />
+                            {selectedProduct?.dosePerHectareMin && selectedProduct?.dosePerHectareMax && (
+                              <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
+                                Rango recomendado: {selectedProduct?.dosePerHectareMin}-{selectedProduct?.dosePerHectareMax} {selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha
+                              </span>
+                            )}
+                          </div>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
+                            <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
+                          </div>
+                        </div>
+                      ) : (
+                        // Campos para dosificación por concentración (cc/L)
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label className="form-label">Concentración (cc/L)</label>
+                            <input type="number" step="0.1" className="form-input" value={wizardState.currentConcentrationPerLiter} onChange={e => {
+                              const conc = parseFloat(e.target.value) || 0;
+                              const water = parseFloat(wizardState.waterAmount) || 0;
+                              setWizardState({ 
+                                ...wizardState, 
+                                currentConcentrationPerLiter: e.target.value,
+                                currentQuantity: water > 0 && conc > 0 ? ((conc * water) / 1000).toFixed(2) : ''
+                              });
+                            }} placeholder={`Default: ${selectedProduct?.concentrationPerLiter || '-'}`} />
+                            {selectedProduct?.concentrationPerLiter && (
+                              <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
+                                Producto: {selectedProduct?.concentrationPerLiter} cc/L
+                              </span>
+                            )}
+                            <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>
+                              Formula: cc/L × L agua ÷ 1000 = L producto
+                            </span>
+                          </div>
+                          <div className="form-group" style={{ flex: 1 }}>
+                            <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
+                            <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  {/* Cuando autoDosage está desactivado, solo mostrar campo de cantidad */}
+                  {!wizardState.autoDosage && (
+                    <div className="form-group">
+                      <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
+                      <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Cantidad total" />
                     </div>
                   )}
 

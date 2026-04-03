@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLotLines, useLots, useProducts } from '../hooks/useData';
-import { LotLine, BaseUnit } from '../types';
+import { LotLine, BaseUnit, Lot } from '../types';
 
 export default function ContainersPage() {
   const { lotLines, loading, addLotLine, updateLotLine, consumeLotLine, rechargeLotLine, deleteLotLine } = useLotLines();
@@ -10,8 +10,8 @@ export default function ContainersPage() {
   const [showConsumeModal, setShowConsumeModal] = useState(false);
   const [showRechargeModal, setShowRechargeModal] = useState(false);
   const [editingLotLine, setEditingLotLine] = useState<LotLine | null>(null);
-  const [lotLineToConsume, setLotLineToConsume] = useState<LotLine | null>(null);
-  const [lotLineToRecharge, setLotLineToRecharge] = useState<LotLine | null>(null);
+  const [selectedLot, setSelectedLot] = useState<Lot | null>(null);
+  const [selectedLotLines, setSelectedLotLines] = useState<LotLine[]>([]);
   const [quantity, setQuantity] = useState('');
   
   const [formData, setFormData] = useState({
@@ -77,32 +77,62 @@ export default function ContainersPage() {
 
   const handleConsume = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lotLineToConsume && quantity) {
-      await consumeLotLine(lotLineToConsume.id, parseFloat(quantity));
+    if (selectedLot && selectedLotLines && quantity) {
+      const qty = parseFloat(quantity);
+      
+      // Consumir de cada línea del lote (igual lógica que tancada)
+      for (const line of selectedLotLines) {
+        if (qty <= 0) break;
+        
+        const lineVolume = line.type === 'FULL' 
+          ? line.capacity 
+          : (line.remainingVolume || line.capacity);
+        
+        if (lineVolume <= 0) continue;
+        
+        const consumeAmount = Math.min(qty, lineVolume);
+        await consumeLotLine(line.id, consumeAmount);
+      }
+      
       setShowConsumeModal(false);
-      setLotLineToConsume(null);
+      setSelectedLot(null);
+      setSelectedLotLines([]);
       setQuantity('');
     }
   };
 
   const handleRecharge = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (lotLineToRecharge && quantity) {
-      await rechargeLotLine(lotLineToRecharge.id, parseFloat(quantity));
+    if (selectedLot && selectedLotLines && quantity) {
+      const qty = parseFloat(quantity);
+      
+      // Recargar cada línea del lote
+      for (const line of selectedLotLines) {
+        if (qty <= 0) break;
+        
+        const lineCapacity = line.capacity;
+        const rechargeAmount = Math.min(qty, lineCapacity);
+        
+        await rechargeLotLine(line.id, rechargeAmount);
+      }
+      
       setShowRechargeModal(false);
-      setLotLineToRecharge(null);
+      setSelectedLot(null);
+      setSelectedLotLines([]);
       setQuantity('');
     }
   };
 
-  const openConsumeModal = (lotLine: LotLine) => {
-    setLotLineToConsume(lotLine);
+  const openConsumeModal = (lot: Lot, lotLineItems: LotLine[]) => {
+    setSelectedLot(lot);
+    setSelectedLotLines(lotLineItems);
     setQuantity('');
     setShowConsumeModal(true);
   };
 
-  const openRechargeModal = (lotLine: LotLine) => {
-    setLotLineToRecharge(lotLine);
+  const openRechargeModal = (lot: Lot, lotLineItems: LotLine[]) => {
+    setSelectedLot(lot);
+    setSelectedLotLines(lotLineItems);
     setQuantity('');
     setShowRechargeModal(true);
   };
@@ -156,7 +186,13 @@ export default function ContainersPage() {
         <div>
           {/* Contenedores por lote */}
           {lots.filter(lot => lotLines.some(l => l.lotId === lot.id)).map(lot => {
-            const lotLineItems = lotLines.filter(l => l.lotId === lot.id);
+            const lotLineItems = lotLines
+              .filter(l => l.lotId === lot.id)
+              .sort((a, b) => {
+                // Ordenar: FULL (1) -> PARTIAL (2) -> EMPTY (3)
+                const order: Record<string, number> = { 'FULL': 1, 'PARTIAL': 2, 'EMPTY': 3 };
+                return (order[a.type] || 4) - (order[b.type] || 4);
+              });
             const product = products.find(p => p.id === lot.productId);
             
             // Solo calcular el total del lote
@@ -187,9 +223,25 @@ export default function ContainersPage() {
                     <strong>{product?.name || 'Sin producto'}</strong>
                     {lot.lotCode && <span style={{ marginLeft: '0.5rem', opacity: 0.8 }}>{lot.lotCode}</span>}
                   </div>
-                  <div style={{ fontSize: '0.85rem', display: 'flex', gap: '1rem' }}>
+                  <div style={{ fontSize: '0.85rem', display: 'flex', gap: '1rem', alignItems: 'center' }}>
                     <span>{totalUnits} <span style={{ opacity: 0.7 }}>contenedores</span></span>
                     <span><strong>{totalVolume.toFixed(1)} / {maxVolume.toFixed(1)} {product?.baseUnit}</strong></span>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button 
+                        className="btn btn-secondary btn-sm"
+                        style={{ background: 'rgba(255,255,255,0.2)', border: 'none' }}
+                        onClick={() => openConsumeModal(lot, lotLineItems)}
+                      >
+                        Consumir
+                      </button>
+                      <button 
+                        className="btn btn-primary btn-sm"
+                        style={{ background: 'rgba(255,255,255,0.2)', border: 'none' }}
+                        onClick={() => openRechargeModal(lot, lotLineItems)}
+                      >
+                        Recargar
+                      </button>
+                    </div>
                   </div>
                 </div>
                 
@@ -234,30 +286,6 @@ export default function ContainersPage() {
                           <span style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
                             ({l.capacity}{product?.baseUnit} c/u)
                           </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                          {isPartial && (
-                            <>
-                              <button 
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => openConsumeModal(l)}
-                              >
-                                Consumir
-                              </button>
-                              <button 
-                                className="btn btn-primary btn-sm"
-                                onClick={() => openRechargeModal(l)}
-                              >
-                                Recargar
-                              </button>
-                            </>
-                          )}
-                          <button 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleDelete(l.id)}
-                          >
-                            ✕
-                          </button>
                         </div>
                       </div>
                       
@@ -407,7 +435,7 @@ export default function ContainersPage() {
       )}
 
       {/* Modal de Consumo */}
-      {showConsumeModal && lotLineToConsume && (
+      {showConsumeModal && selectedLot && (
         <div className="modal-overlay" onClick={() => setShowConsumeModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
@@ -421,8 +449,15 @@ export default function ContainersPage() {
             </div>
             <form onSubmit={handleConsume}>
               <div className="modal-body">
+                <p style={{ marginBottom: '0.5rem' }}>
+                  <strong>Lote:</strong> {selectedLot.lotCode || selectedLot.id.slice(0, 8)}
+                </p>
                 <p style={{ marginBottom: '1rem' }}>
-                  <strong>Disponible:</strong> {lotLineToConsume.remainingVolume?.toFixed(1) || 0} {lotLineToConsume.unit}
+                  <strong>Disponible:</strong> {selectedLotLines.reduce((sum, l) => {
+                    if (l.type === 'FULL') return sum + (l.capacity * l.units);
+                    if (l.type === 'PARTIAL') return sum + (l.remainingVolume || 0);
+                    return sum;
+                  }, 0).toFixed(1)} {selectedLotLines[0]?.unit}
                 </p>
                 <div className="form-group">
                   <label className="form-label">Cantidad a consumir</label>
@@ -430,7 +465,6 @@ export default function ContainersPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    max={lotLineToConsume.remainingVolume || 0}
                     className="form-input"
                     value={quantity}
                     onChange={e => setQuantity(e.target.value)}
@@ -456,11 +490,11 @@ export default function ContainersPage() {
       )}
 
       {/* Modal de Recarga */}
-      {showRechargeModal && lotLineToRecharge && (
+      {showRechargeModal && selectedLot && (
         <div className="modal-overlay" onClick={() => setShowRechargeModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Recargar Contenedor</h3>
+              <h3 className="modal-title">Recargar Lote</h3>
               <button 
                 className="btn btn-icon btn-secondary"
                 onClick={() => setShowRechargeModal(false)}
@@ -470,23 +504,30 @@ export default function ContainersPage() {
             </div>
             <form onSubmit={handleRecharge}>
               <div className="modal-body">
+                <p style={{ marginBottom: '0.5rem' }}>
+                  <strong>Lote:</strong> {selectedLot.lotCode || selectedLot.id.slice(0, 8)}
+                </p>
                 <p style={{ marginBottom: '1rem' }}>
-                  <strong>Restante actual:</strong> {lotLineToRecharge.remainingVolume?.toFixed(1) || 0} {lotLineToRecharge.unit}
+                  <strong>Stock actual:</strong> {selectedLotLines.reduce((sum, l) => {
+                    if (l.type === 'FULL') return sum + (l.capacity * l.units);
+                    if (l.type === 'PARTIAL') return sum + (l.remainingVolume || 0);
+                    return sum;
+                  }, 0).toFixed(1)} {selectedLotLines[0]?.unit}
                 </p>
                 <p style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                  Capacidad máxima: {lotLineToRecharge.capacity} {lotLineToRecharge.unit}
+                  Capacidad máxima total: {selectedLotLines.reduce((sum, l) => sum + (l.capacity * l.units), 0)} {selectedLotLines[0]?.unit}
                 </p>
                 <div className="form-group">
-                  <label className="form-label">Cantidad a agregar (dejar vacío para llenar)</label>
+                  <label className="form-label">Cantidad a agregar</label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    max={lotLineToRecharge.capacity}
                     className="form-input"
                     value={quantity}
                     onChange={e => setQuantity(e.target.value)}
-                    placeholder={`Max: ${lotLineToRecharge.capacity}`}
+                    placeholder="Cantidad a agregar"
+                    required
                   />
                 </div>
               </div>

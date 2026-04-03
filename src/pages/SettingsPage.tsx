@@ -1,10 +1,4 @@
 import { useState, useEffect } from 'react';
-import { settingsService } from '../services';
-
-interface SettingItem {
-  id: string;
-  name: string;
-}
 
 // Lista de temas disponibles
 const themes = [
@@ -23,26 +17,17 @@ const fontSizes = [
 ];
 
 export default function SettingsPage() {
-  const [loading, setLoading] = useState(true);
   const [currentTheme, setCurrentTheme] = useState<string>('light');
   const [currentFontSize, setCurrentFontSize] = useState<string>('medium');
+  const [autoDosage, setAutoDosage] = useState<boolean>(() => {
+    const saved = localStorage.getItem('auto-dosage');
+    return saved !== null ? saved === 'true' : false;
+  });
   
   // Update app state
   const [updating, setUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
   
-  // Product Types
-  const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
-  const [newProductType, setNewProductType] = useState('');
-  
-  // Product States  
-  const [productStates, setProductStates] = useState<SettingItem[]>([]);
-  const [newProductState, setNewProductState] = useState('');
-  
-  // Container Types
-  const [containerTypes, setContainerTypes] = useState<SettingItem[]>([]);
-  const [newContainerType, setNewContainerType] = useState('');
-
   // Cargar tema al inicio
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme') || 'light';
@@ -70,106 +55,11 @@ export default function SettingsPage() {
     document.documentElement.style.fontSize = size;
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [types, states, containers] = await Promise.all([
-        settingsService.getProductTypes(),
-        settingsService.getProductStates(),
-        settingsService.getContainerTypes()
-      ]);
-      setProductTypes(types);
-      setProductStates(states);
-      setContainerTypes(containers);
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    }
-    setLoading(false);
+  // Toggle auto-dosage
+  const toggleAutoDosage = (value: boolean) => {
+    setAutoDosage(value);
+    localStorage.setItem('auto-dosage', value.toString());
   };
-
-  // Product Types
-  const addProductType = async () => {
-    if (newProductType) {
-      try {
-        await settingsService.createProductType(newProductType);
-        await loadData();
-        setNewProductType('');
-      } catch (error) {
-        console.error('Error adding product type:', error);
-      }
-    }
-  };
-  
-  const removeProductType = async (id: string) => {
-    if (confirm('¿Eliminar este tipo de producto?')) {
-      try {
-        await settingsService.deleteProductType(id);
-        await loadData();
-      } catch (error) {
-        console.error('Error removing product type:', error);
-      }
-    }
-  };
-
-  // Product States
-  const addProductState = async () => {
-    if (newProductState) {
-      try {
-        await settingsService.createProductState(newProductState);
-        await loadData();
-        setNewProductState('');
-      } catch (error) {
-        console.error('Error adding product state:', error);
-      }
-    }
-  };
-  
-  const removeProductState = async (id: string) => {
-    if (confirm('¿Eliminar este estado de producto?')) {
-      try {
-        await settingsService.deleteProductState(id);
-        await loadData();
-      } catch (error) {
-        console.error('Error removing product state:', error);
-      }
-    }
-  };
-
-  // Container Types
-  const addContainerType = async () => {
-    if (newContainerType) {
-      try {
-        await settingsService.createContainerType(newContainerType);
-        await loadData();
-        setNewContainerType('');
-      } catch (error) {
-        console.error('Error adding container type:', error);
-      }
-    }
-  };
-  
-  const removeContainerType = async (id: string) => {
-    if (confirm('¿Eliminar este tipo de contenedor?')) {
-      try {
-        await settingsService.deleteContainerType(id);
-        await loadData();
-      } catch (error) {
-        console.error('Error removing container type:', error);
-      }
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="loading">
-        <div className="spinner"></div>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -305,106 +195,32 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
-        
-        {/* Tipos de Producto */}
-        <div className="card">
-          <h3>📦 Tipos de Producto</h3>
-          <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
-            Define los tipos de productos que usás en tu empresa.
-          </p>
-          
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-            {productTypes.map(type => (
-              <span key={type.id} className="badge badge-primary" style={{ padding: '0.5rem' }}>
-                {type.name}
-                <button 
-                  onClick={() => removeProductType(type.id)}
-                  style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              className="form-input"
-              value={newProductType}
-              onChange={e => setNewProductType(e.target.value.toUpperCase())}
-              placeholder="Nuevo tipo..."
-              onKeyPress={e => e.key === 'Enter' && addProductType()}
-            />
-            <button className="btn btn-primary" onClick={addProductType}>Agregar</button>
-          </div>
-        </div>
 
-        {/* Estados de Producto */}
+        {/* Dosificación Automática */}
         <div className="card">
-          <h3>💧 Estados de Producto</h3>
+          <h3>💊 Dosificación Automática</h3>
           <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
-            Define los estados físicos de los productos.
+            Cuando está activado, el sistema calcula automáticamente la cantidad de producto según la dosis o concentración. Cuando está desactivado, podés ingresar la cantidad manualmente.
           </p>
           
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-            {productStates.map(state => (
-              <span key={state.id} className="badge badge-secondary" style={{ padding: '0.5rem' }}>
-                {state.name}
-                <button 
-                  onClick={() => removeProductState(state.id)}
-                  style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '0.5rem',
+            padding: '0.75rem',
+            background: autoDosage ? 'var(--success-light)' : 'var(--gray-100)',
+            borderRadius: 'var(--radius)'
+          }}>
             <input
-              type="text"
-              className="form-input"
-              value={newProductState}
-              onChange={e => setNewProductState(e.target.value.toUpperCase())}
-              placeholder="Nuevo estado..."
-              onKeyPress={e => e.key === 'Enter' && addProductState()}
+              type="checkbox"
+              id="autoDosage"
+              checked={autoDosage}
+              onChange={e => toggleAutoDosage(e.target.checked)}
+              style={{ width: '20px', height: '20px' }}
             />
-            <button className="btn btn-primary" onClick={addProductState}>Agregar</button>
-          </div>
-        </div>
-
-        {/* Tipos de Contenedor */}
-        <div className="card">
-          <h3>🫙 Tipos de Contenedor</h3>
-          <p style={{ color: 'var(--gray-600)', marginBottom: '1rem' }}>
-            Define los tipos de contenedores que usás.
-          </p>
-          
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
-            {containerTypes.map(type => (
-              <span key={type.id} className="badge badge-info" style={{ padding: '0.5rem' }}>
-                {type.name}
-                <button 
-                  onClick={() => removeContainerType(type.id)}
-                  style={{ marginLeft: '0.5rem', background: 'none', border: 'none', cursor: 'pointer', color: 'inherit' }}
-                >
-                  ✕
-                </button>
-              </span>
-            ))}
-          </div>
-          
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <input
-              type="text"
-              className="form-input"
-              value={newContainerType}
-              onChange={e => setNewContainerType(e.target.value.toUpperCase())}
-              placeholder="Nuevo tipo..."
-              onKeyPress={e => e.key === 'Enter' && addContainerType()}
-            />
-            <button className="btn btn-primary" onClick={addContainerType}>Agregar</button>
+            <label htmlFor="autoDosage" style={{ fontWeight: '500', cursor: 'pointer' }}>
+              Calcular dosificación automáticamente
+            </label>
           </div>
         </div>
 

@@ -45,6 +45,10 @@ export default function TancadasPage() {
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
   const [editingTancada, setEditingTancada] = useState<Tancada | null>(null);
+  const [autoDosage, setAutoDosage] = useState<boolean>(() => {
+    const saved = localStorage.getItem('auto-dosage');
+    return saved !== null ? saved === 'true' : false;
+  });
 
   // Generar texto de resumen para una tancada
   const generarResumenTexto = (tancada: Tancada): string => {
@@ -910,60 +914,79 @@ export default function TancadasPage() {
                         </div>
                         
                         {/* Dosis por hectáreas o Concentración cc/L */}
-                        {product?.doseType === 'CONCENTRATION' ? (
-                          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Concentración (cc/L)</label>
-                              <input
-                                type="number"
-                                step="0.1"
-                                className="form-input"
-                                value={sp.concentration || ''}
-                                onChange={e => handleProductChange(index, 'concentration', e.target.value)}
-                                placeholder={product.concentrationPerLiter?.toString() || 'cc/L'}
-                              />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={sp.quantity}
-                                onChange={e => handleProductChange(index, 'quantity', e.target.value)}
-                                placeholder="Cantidad"
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Dosis por Ha ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit})</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={sp.dosePerHectare}
-                                onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
-                                placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Max: ${product?.dosePerHectareMax || '-'}`}
-                              />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={sp.quantity}
-                                onChange={e => handleProductChange(index, 'quantity', e.target.value)}
-                                placeholder="Cantidad"
-                              />
-                            </div>
+                        {autoDosage && (
+                          <>
+                            {product?.doseType === 'CONCENTRATION' ? (
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Concentración (cc/L)</label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    className="form-input"
+                                    value={sp.concentration || ''}
+                                    onChange={e => handleProductChange(index, 'concentration', e.target.value)}
+                                    placeholder={product.concentrationPerLiter?.toString() || 'cc/L'}
+                                  />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={sp.quantity}
+                                    onChange={e => handleProductChange(index, 'quantity', e.target.value)}
+                                    placeholder="Cantidad"
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Dosis por Ha ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit})</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={sp.dosePerHectare}
+                                    onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
+                                    placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Max: ${product?.dosePerHectareMax || '-'}`}
+                                  />
+                                </div>
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={sp.quantity}
+                                    onChange={e => handleProductChange(index, 'quantity', e.target.value)}
+                                    placeholder="Cantidad"
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        {/* Cuando autoDosage está desactivado, solo mostrar campo de cantidad */}
+                        {!autoDosage && (
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-input"
+                              value={sp.quantity}
+                              onChange={e => handleProductChange(index, 'quantity', e.target.value)}
+                              placeholder="Cantidad total"
+                            />
                           </div>
                         )}
                         
                         {/* Recommended dose range info */}
-                        {product && totalHa > 0 && (
+                        {autoDosage && product && totalHa > 0 && (
                           <div style={{ 
                             background: 'var(--white)', 
                             padding: '0.5rem', 

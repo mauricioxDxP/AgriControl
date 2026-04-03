@@ -33,6 +33,10 @@ export default function ApplicationsPage() {
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
   const [editingApplication, setEditingApplication] = useState<Application | null>(null);
+  const [autoDosage, setAutoDosage] = useState<boolean>(() => {
+    const saved = localStorage.getItem('auto-dosage');
+    return saved !== null ? saved === 'true' : false;
+  });
 
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
@@ -298,13 +302,29 @@ export default function ApplicationsPage() {
         waterAmount: app.waterAmount?.toString() || '',
         notes: app.notes || ''
       });
-      setSelectedProducts(app.applicationProducts?.map(p => ({
-        productId: p.productId,
-        dosePerHectare: p.dosePerHectare?.toString() || '',
-        concentration: p.concentration?.toString() || '',
-        quantityUsed: p.quantityUsed?.toString() || '',
-        lots: []
-      })) || []);
+      
+      // Cargar los productos con sus lotes
+      const productsWithLots = app.applicationProducts?.map(p => {
+        // Cargar lots del lotsUsed si existe
+        let lots: { lotId: string; quantityUsed: number }[] = [];
+        if (p.lotsUsed) {
+          try {
+            lots = typeof p.lotsUsed === 'string' ? JSON.parse(p.lotsUsed) : p.lotsUsed;
+          } catch (e) {
+            console.error('Error parsing lotsUsed:', e);
+          }
+        }
+        
+        return {
+          productId: p.productId,
+          dosePerHectare: p.dosePerHectare?.toString() || '',
+          concentration: p.concentration?.toString() || '',
+          quantityUsed: p.quantityUsed?.toString() || '',
+          lots: lots
+        };
+      }) || [];
+      
+      setSelectedProducts(productsWithLots);
       fetchLotStocks();
       setShowModal(true);
     }
@@ -357,7 +377,7 @@ export default function ApplicationsPage() {
             <div style={{ fontSize: '3rem' }}>🚜</div>
             <h3>No hay aplicaciones</h3>
             <p>Registrá tu primera aplicación de fumigación o siembra</p>
-            <button className="btn btn-primary mt-1" onClick={() => { resetForm(); setShowModal(true); }}>
+            <button className="btn btn-primary mt-1" onClick={() => window.innerWidth < 768 ? setShowWizard(true) : (resetForm(), fetchLotStocks(), setShowModal(true))}>
               + Nuevo
             </button>
           </div>
@@ -545,7 +565,7 @@ export default function ApplicationsPage() {
                   <label className="form-label">Productos a Aplicar</label>
                   {selectedProducts.map((sp, index) => {
                     const product = products.find(p => p.id === sp.productId);
-                    const dosageResult = calculateProductDosage(sp.productId, sp.dosePerHectare, sp.concentration);
+                    const dosageResult = autoDosage ? calculateProductDosage(sp.productId, sp.dosePerHectare, sp.concentration) : null;
                     
                     return (
                       <div key={index} style={{ 
@@ -568,45 +588,49 @@ export default function ApplicationsPage() {
                             ))}
                           </select>
                           
-                          {product?.doseType === 'CONCENTRATION' ? (
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
-                                Concentración (cc/L)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.1"
-                                className="form-input"
-                                value={sp.concentration || ''}
-                                onChange={e => handleProductChange(index, 'concentration', e.target.value)}
-                                placeholder={product.concentrationPerLiter?.toString() || 'cc/L'}
-                              />
-                            </div>
-                          ) : (
-                            <div style={{ flex: 1 }}>
-                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
-                                Dosis ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit}/ha)
-                              </label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                className="form-input"
-                                value={sp.dosePerHectare}
-                                onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
-                                placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Máx: ${product?.dosePerHectareMax || '-'}`}
-                              />
-                            </div>
-                          )}
-                          {(product?.state?.name || product?.state) === 'LIQUIDO' && product?.doseType !== 'CONCENTRATION' && (
-                            <input
-                              type="number"
-                              step="0.1"
-                              className="form-input"
-                              value={sp.concentration}
-                              onChange={e => handleProductChange(index, 'concentration', e.target.value)}
-                              placeholder="Conc %"
-                              style={{ flex: 1 }}
-                            />
+                          {autoDosage && (
+                            <>
+                              {product?.doseType === 'CONCENTRATION' ? (
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
+                                    Concentración (cc/L)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.1"
+                                    className="form-input"
+                                    value={sp.concentration || ''}
+                                    onChange={e => handleProductChange(index, 'concentration', e.target.value)}
+                                    placeholder={product.concentrationPerLiter?.toString() || 'cc/L'}
+                                  />
+                                </div>
+                              ) : (
+                                <div style={{ flex: 1 }}>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
+                                    Dosis ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit}/ha)
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    className="form-input"
+                                    value={sp.dosePerHectare}
+                                    onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
+                                    placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Máx: ${product?.dosePerHectareMax || '-'}`}
+                                  />
+                                </div>
+                              )}
+                              {(product?.state?.name || product?.state) === 'LIQUIDO' && product?.doseType !== 'CONCENTRATION' && (
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  className="form-input"
+                                  value={sp.concentration}
+                                  onChange={e => handleProductChange(index, 'concentration', e.target.value)}
+                                  placeholder="Conc %"
+                                  style={{ flex: 1 }}
+                                />
+                              )}
+                            </>
                           )}
                           <button
                             type="button"
@@ -618,7 +642,7 @@ export default function ApplicationsPage() {
                         </div>
                         
                         {/* Recommended dose range */}
-                        {product && selectedField && (
+                        {autoDosage && product && selectedField && (
                           <div style={{ 
                             background: 'var(--white)', 
                             padding: '0.5rem', 
@@ -645,7 +669,7 @@ export default function ApplicationsPage() {
                         )}
                         
                         {/* Calculated result */}
-                        {dosageResult && selectedField && (
+                        {autoDosage && dosageResult && selectedField && (
                           <div style={{ 
                             background: 'var(--white)', 
                             padding: '0.5rem', 
