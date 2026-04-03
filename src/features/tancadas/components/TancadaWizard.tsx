@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Field, Product, Tank, Lot } from '../types';
+import { Field, Product, Tank, Lot } from '../../../types';
+import { convertDoseToBaseUnit } from '../../../shared/utils/unitConversions';
 
 type WizardStep = 'date-tank' | 'fields-hectares' | 'add-product' | 'products-list' | 'notes' | 'confirm';
 
@@ -11,12 +12,13 @@ interface WizardState {
   waterAmount: string;
   totalHectares: string;
   fields: { fieldId: string; hectares: string }[];
-  products: { productId: string; concentration?: string; quantity: string; dosePerHectare?: string; lots: { lotId: string; quantityUsed: number }[] }[];
+  products: { productId: string; concentration?: string; quantity: string; dosePerHectare?: string; concentrationPerLiter?: string; doseType?: string; lots: { lotId: string; quantityUsed: number }[] }[];
   notes: string;
   // Para agregar producto individual
   selectedProductId: string;
   currentConcentration: string;
   currentDosePerHectare: string;
+  currentConcentrationPerLiter: string;
   currentQuantity: string;
   currentLotId: string;
   currentLotQuantity: string;
@@ -54,6 +56,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     selectedProductId: '',
     currentConcentration: '',
     currentDosePerHectare: '',
+    currentConcentrationPerLiter: '',
     currentQuantity: '',
     currentLotId: '',
     currentLotQuantity: ''
@@ -131,6 +134,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         selectedProductId: '',
         currentConcentration: '',
         currentDosePerHectare: '',
+        currentConcentrationPerLiter: '',
         currentQuantity: '',
         currentLotId: '',
         currentLotQuantity: ''
@@ -174,6 +178,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       selectedProductId: availableProducts.length > 0 ? availableProducts[0].id : '',
       currentConcentration: '',
       currentDosePerHectare: '',
+      currentConcentrationPerLiter: '',
       currentQuantity: '',
       currentLotId: '',
       currentLotQuantity: ''
@@ -182,10 +187,34 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
 
   // Agregar otro producto - primero guarda el actual
   const addAnotherProduct = () => {
-    // Primero guardar el producto actual
+    const selectedProduct = products.find(p => p.id === wizardState.selectedProductId);
     const totalHa = parseFloat(wizardState.totalHectares) || 0;
-    const dose = parseFloat(wizardState.currentDosePerHectare) || 0;
-    const quantity = totalHa * dose || parseFloat(wizardState.currentQuantity) || 0;
+    const waterAmount = parseFloat(wizardState.waterAmount) || 0;
+    
+    // Calcular cantidad según doseType
+    let quantity = 0;
+    const doseType = selectedProduct?.doseType || 'PER_HECTARE';
+    
+    if (doseType === 'CONCENTRATION') {
+      // concentrationPerLiter (cc/L) * litros de agua / 1000 = litros de producto
+      const concPerLiter = parseFloat(wizardState.currentConcentrationPerLiter) || selectedProduct?.concentrationPerLiter || 0;
+      quantity = (concPerLiter * waterAmount) / 1000;
+    } else {
+      // dosePerHectare * hectáreas (considerando conversión de unidad)
+      const dose = parseFloat(wizardState.currentDosePerHectare) || selectedProduct?.dosePerHectareMin || 0;
+      // Convertir la dosis a la unidad base del producto
+      const convertedDose = convertDoseToBaseUnit(
+        dose, 
+        selectedProduct?.doseUnit, 
+        selectedProduct?.baseUnit || 'L'
+      );
+      quantity = totalHa * convertedDose;
+    }
+    
+    // Si el usuario modificó la cantidad manualmente, usar esa
+    if (wizardState.currentQuantity && parseFloat(wizardState.currentQuantity) > 0) {
+      quantity = parseFloat(wizardState.currentQuantity);
+    }
 
     const newLots = wizardState.currentLotId ? [{
       lotId: wizardState.currentLotId,
@@ -197,6 +226,8 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       concentration: wizardState.currentConcentration,
       quantity: quantity > 0 ? quantity.toString() : '',
       dosePerHectare: wizardState.currentDosePerHectare,
+      concentrationPerLiter: wizardState.currentConcentrationPerLiter,
+      doseType: doseType,
       lots: newLots
     };
 
@@ -212,6 +243,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         selectedProductId: nextProduct?.id || '',
         currentConcentration: '',
         currentDosePerHectare: '',
+        currentConcentrationPerLiter: '',
         currentQuantity: '',
         currentLotId: '',
         currentLotQuantity: ''
@@ -258,6 +290,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       selectedProductId: product.productId,
       currentConcentration: product.concentration || '',
       currentDosePerHectare: product.dosePerHectare || '',
+      currentConcentrationPerLiter: product.concentrationPerLiter || '',
       currentQuantity: product.quantity,
       currentLotId: product.lots && product.lots.length > 0 ? product.lots[0].lotId : '',
       currentLotQuantity: product.lots && product.lots.length > 0 ? product.lots[0].quantityUsed.toString() : ''
@@ -426,55 +459,115 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                 <select className="form-select" value={wizardState.selectedProductId} onChange={e => {
                   const productId = e.target.value;
                   const product = products.find(p => p.id === productId);
-                  const dose = product?.dosePerHectareMin || 0;
                   const totalHa = parseFloat(wizardState.totalHectares) || 0;
+                  const waterAmount = parseFloat(wizardState.waterAmount) || 0;
+                  
+                  // Calcular cantidad según doseType
+                  let suggestedQuantity = '';
+                  const doseType = product?.doseType || 'PER_HECTARE';
+                  
+                  if (doseType === 'CONCENTRATION') {
+                    const concPerLiter = product?.concentrationPerLiter || 0;
+                    if (waterAmount > 0 && concPerLiter > 0) {
+                      suggestedQuantity = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+                    }
+                  } else {
+                    const dose = product?.dosePerHectareMin || 0;
+                    if (totalHa > 0 && dose > 0) {
+                      // Convertir la dosis a la unidad base del producto
+                      const convertedDose = convertDoseToBaseUnit(
+                        dose, 
+                        product?.doseUnit, 
+                        product?.baseUnit || 'L'
+                      );
+                      suggestedQuantity = (totalHa * convertedDose).toFixed(2);
+                    }
+                  }
+                  
                   setWizardState({ 
                     ...wizardState, 
                     selectedProductId: productId,
                     currentConcentration: product?.concentration?.toString() || '',
                     currentDosePerHectare: product?.dosePerHectareMin?.toString() || '',
-                    currentQuantity: totalHa > 0 && dose > 0 ? (totalHa * dose).toFixed(2) : ''
+                    currentConcentrationPerLiter: product?.concentrationPerLiter?.toString() || '',
+                    currentQuantity: suggestedQuantity
                   });
                 }}>
                   <option value="">Elegir producto...</option>
                   {selectProducts.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.baseUnit})</option>
+                    <option key={p.id} value={p.id}>{p.name} ({p.baseUnit}) {p.doseType === 'CONCENTRATION' ? '- cc/L' : '- ha'}</option>
                   ))}
                 </select>
               </div>
 
-              {wizardState.selectedProductId && (
+              {wizardState.selectedProductId && (() => {
+                const selectedProduct = products.find(p => p.id === wizardState.selectedProductId);
+                const doseType = selectedProduct?.doseType || 'PER_HECTARE';
+                
+                return (
                 <>
-                  {/* Concentración */}
+                  {/* Concentración (%) - opcional para todos */}
                   <div className="form-group">
                     <label className="form-label">Concentración (%) - Opcional</label>
                     <input type="number" step="0.1" className="form-input" value={wizardState.currentConcentration} onChange={e => setWizardState({ ...wizardState, currentConcentration: e.target.value })} placeholder="Ej: 5" />
                   </div>
 
-                  {/* Dosis y cantidad */}
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label">Dosis/Ha ({getSelectedProduct()?.baseUnit}/ha)</label>
-                      <input type="number" step="0.01" className="form-input" value={wizardState.currentDosePerHectare} onChange={e => {
-                        const dose = parseFloat(e.target.value) || 0;
-                        const totalHa = parseFloat(wizardState.totalHectares) || 0;
-                        setWizardState({ 
-                          ...wizardState, 
-                          currentDosePerHectare: e.target.value,
-                          currentQuantity: totalHa > 0 && dose > 0 ? (totalHa * dose).toFixed(2) : ''
-                        });
-                      }} placeholder={`Min: ${getSelectedProduct()?.dosePerHectareMin || '-'} - Max: ${getSelectedProduct()?.dosePerHectareMax || '-'}`} />
-                      {getSelectedProduct()?.dosePerHectareMin && getSelectedProduct()?.dosePerHectareMax && (
-                        <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
-                          Rango recomendado: {getSelectedProduct()?.dosePerHectareMin} - {getSelectedProduct()?.dosePerHectareMax} {getSelectedProduct()?.baseUnit}/ha
+                  {doseType === 'PER_HECTARE' ? (
+                    // Campos para dosificación por hectárea
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">Dosis/Ha ({selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha)</label>
+                        <input type="number" step="0.01" className="form-input" value={wizardState.currentDosePerHectare} onChange={e => {
+                          const dose = parseFloat(e.target.value) || 0;
+                          const ha = parseFloat(wizardState.totalHectares) || 0;
+                          // Convertir dosis a unidad base para el cálculo
+                          const convertedDose = convertDoseToBaseUnit(dose, selectedProduct?.doseUnit, selectedProduct?.baseUnit || 'L');
+                          setWizardState({ 
+                            ...wizardState, 
+                            currentDosePerHectare: e.target.value,
+                            currentQuantity: ha > 0 && dose > 0 ? (ha * convertedDose).toFixed(2) : ''
+                          });
+                        }} placeholder={`Min: ${selectedProduct?.dosePerHectareMin || '-'} - Max: ${selectedProduct?.dosePerHectareMax || '-'}`} />
+                        {selectedProduct?.dosePerHectareMin && selectedProduct?.dosePerHectareMax && (
+                          <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
+                            Rango recomendado: {selectedProduct?.dosePerHectareMin}-{selectedProduct?.dosePerHectareMax} {selectedProduct?.doseUnit === 'BASE_UNIT' || !selectedProduct?.doseUnit ? selectedProduct?.baseUnit : selectedProduct?.doseUnit}/ha
+                          </span>
+                        )}
+                      </div>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
+                        <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
+                      </div>
+                    </div>
+                  ) : (
+                    // Campos para dosificación por concentración (cc/L)
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">Concentración (cc/L)</label>
+                        <input type="number" step="0.1" className="form-input" value={wizardState.currentConcentrationPerLiter} onChange={e => {
+                          const conc = parseFloat(e.target.value) || 0;
+                          const water = parseFloat(wizardState.waterAmount) || 0;
+                          setWizardState({ 
+                            ...wizardState, 
+                            currentConcentrationPerLiter: e.target.value,
+                            currentQuantity: water > 0 && conc > 0 ? ((conc * water) / 1000).toFixed(2) : ''
+                          });
+                        }} placeholder={`Default: ${selectedProduct?.concentrationPerLiter || '-'}`} />
+                        {selectedProduct?.concentrationPerLiter && (
+                          <span style={{ fontSize: '0.7rem', marginTop: '0.25rem', color: '#666', display: 'block' }}>
+                            Producto: {selectedProduct?.concentrationPerLiter} cc/L
+                          </span>
+                        )}
+                        <span style={{ fontSize: '0.7rem', color: '#666', display: 'block' }}>
+                          Formula: cc/L × L agua ÷ 1000 = L producto
                         </span>
-                      )}
+                      </div>
+                      <div className="form-group" style={{ flex: 1 }}>
+                        <label className="form-label">Cantidad ({selectedProduct?.baseUnit}) *</label>
+                        <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
+                      </div>
                     </div>
-                    <div className="form-group" style={{ flex: 1 }}>
-                      <label className="form-label">Cantidad ({getSelectedProduct()?.baseUnit}) *</label>
-                      <input type="number" step="0.01" className="form-input" value={wizardState.currentQuantity} onChange={e => setWizardState({ ...wizardState, currentQuantity: e.target.value })} placeholder="Total" />
-                    </div>
-                  </div>
+                  )}
 
                   {/* Selector de lote */}
                   {productLots.length > 0 ? (
@@ -536,7 +629,8 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                     </div>
                   )}
                 </>
-              )}
+                );
+              })()}
 
               {/* Botones de acción */}
               <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>

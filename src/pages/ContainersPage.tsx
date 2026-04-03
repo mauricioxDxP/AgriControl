@@ -1,55 +1,50 @@
 import { useState } from 'react';
-import { useContainers, useLots, useProducts } from '../hooks/useData';
-import { Container, ContainerType, ContainerStatus, BaseUnit, ContainerMovement } from '../types';
-import { containersApi } from '../services/api';
+import { useLotLines, useLots, useProducts } from '../hooks/useData';
+import { LotLine, BaseUnit } from '../types';
 
 export default function ContainersPage() {
-  const { containers, loading, addContainer, updateContainer, deleteContainer, consumeContainer } = useContainers();
+  const { lotLines, loading, addLotLine, updateLotLine, consumeLotLine, rechargeLotLine, deleteLotLine } = useLotLines();
   const { lots } = useLots();
   const { products } = useProducts();
   const [showModal, setShowModal] = useState(false);
   const [showConsumeModal, setShowConsumeModal] = useState(false);
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [containerHistory, setContainerHistory] = useState<ContainerMovement[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-  const [editingContainer, setEditingContainer] = useState<Container | null>(null);
-  const [containerToConsume, setContainerToConsume] = useState<Container | null>(null);
-  const [consumeQuantity, setConsumeQuantity] = useState('');
+  const [showRechargeModal, setShowRechargeModal] = useState(false);
+  const [editingLotLine, setEditingLotLine] = useState<LotLine | null>(null);
+  const [lotLineToConsume, setLotLineToConsume] = useState<LotLine | null>(null);
+  const [lotLineToRecharge, setLotLineToRecharge] = useState<LotLine | null>(null);
+  const [quantity, setQuantity] = useState('');
   
   const [formData, setFormData] = useState({
     lotId: '',
-    type: 'BIDON' as ContainerType,
+    productId: '',
+    type: 'FULL' as 'FULL' | 'PARTIAL' | 'EMPTY',
+    units: '1',
     capacity: '',
-    unit: 'L' as BaseUnit,
-    status: 'DISPONIBLE' as ContainerStatus,
-    name: '',
-    notes: ''
+    unit: 'L' as BaseUnit
   });
 
   const resetForm = () => {
     setFormData({
       lotId: '',
-      type: 'BIDON',
+      productId: '',
+      type: 'FULL',
+      units: '1',
       capacity: '',
-      unit: 'L',
-      status: 'DISPONIBLE',
-      name: '',
-      notes: ''
+      unit: 'L'
     });
-    setEditingContainer(null);
+    setEditingLotLine(null);
   };
 
-  const openModal = (container?: Container) => {
-    if (container) {
-      setEditingContainer(container);
+  const openModal = (lotLine?: LotLine) => {
+    if (lotLine) {
+      setEditingLotLine(lotLine);
       setFormData({
-        lotId: container.lotId,
-        type: container.type,
-        capacity: container.capacity.toString(),
-        unit: container.unit,
-        status: container.status,
-        name: container.name || '',
-        notes: container.notes || ''
+        lotId: lotLine.lotId,
+        productId: lotLine.productId,
+        type: lotLine.type,
+        units: lotLine.units.toString(),
+        capacity: lotLine.capacity.toString(),
+        unit: lotLine.unit
       });
     } else {
       resetForm();
@@ -62,18 +57,18 @@ export default function ContainersPage() {
     
     const data = {
       lotId: formData.lotId,
+      productId: formData.productId,
       type: formData.type,
+      units: parseInt(formData.units),
       capacity: parseFloat(formData.capacity),
       unit: formData.unit,
-      status: formData.status,
-      name: formData.name || undefined,
-      notes: formData.notes || undefined
+      remainingVolume: formData.type === 'FULL' ? parseFloat(formData.capacity) : undefined
     };
 
-    if (editingContainer) {
-      await updateContainer(editingContainer.id, data);
+    if (editingLotLine) {
+      await updateLotLine(editingLotLine.id, data);
     } else {
-      await addContainer(data);
+      await addLotLine(data);
     }
 
     setShowModal(false);
@@ -82,37 +77,40 @@ export default function ContainersPage() {
 
   const handleConsume = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (containerToConsume && consumeQuantity) {
-      await consumeContainer(containerToConsume.id, parseFloat(consumeQuantity));
+    if (lotLineToConsume && quantity) {
+      await consumeLotLine(lotLineToConsume.id, parseFloat(quantity));
       setShowConsumeModal(false);
-      setContainerToConsume(null);
-      setConsumeQuantity('');
+      setLotLineToConsume(null);
+      setQuantity('');
     }
   };
 
-  const openConsumeModal = (container: Container) => {
-    setContainerToConsume(container);
-    setConsumeQuantity('');
+  const handleRecharge = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (lotLineToRecharge && quantity) {
+      await rechargeLotLine(lotLineToRecharge.id, parseFloat(quantity));
+      setShowRechargeModal(false);
+      setLotLineToRecharge(null);
+      setQuantity('');
+    }
+  };
+
+  const openConsumeModal = (lotLine: LotLine) => {
+    setLotLineToConsume(lotLine);
+    setQuantity('');
     setShowConsumeModal(true);
+  };
+
+  const openRechargeModal = (lotLine: LotLine) => {
+    setLotLineToRecharge(lotLine);
+    setQuantity('');
+    setShowRechargeModal(true);
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de eliminar este contenedor?')) {
-      await deleteContainer(id);
+      await deleteLotLine(id);
     }
-  };
-
-  const viewContainerHistory = async (container: Container) => {
-    setLoadingHistory(true);
-    setShowHistoryModal(true);
-    try {
-      const movements = await containersApi.getMovements(container.id);
-      setContainerHistory(movements);
-    } catch (error) {
-      console.error('Error loading history:', error);
-      setContainerHistory([]);
-    }
-    setLoadingHistory(false);
   };
 
   if (loading) {
@@ -128,7 +126,7 @@ export default function ContainersPage() {
       <div className="flex flex-between mb-2">
         <h2>Contenedores</h2>
         <button className="btn btn-primary" onClick={() => openModal()} disabled={lots.length === 0}>
-          + Nuevo
+          + Nuevo Contenedor
         </button>
       </div>
 
@@ -141,33 +139,39 @@ export default function ContainersPage() {
       )}
 
       {/* Vista de contenedores por lote */}
-      {containers.length === 0 && lots.length > 0 && (
+      {lots.length > 0 && lotLines.length === 0 && (
         <div className="card">
           <div className="empty-state">
             <div style={{ fontSize: '3rem' }}>📦</div>
             <h3>No hay contenedores</h3>
-            <p>Registrá tu primer contenedor para gestionar el inventario físico</p>
+            <p>Registrá tu primer contenedor para gestionar el inventario</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
-              + Nuevo
+              + Nuevo Contenedor
             </button>
           </div>
         </div>
       )}
 
-      {lots.length > 0 && containers.length > 0 && (
+      {lots.length > 0 && lotLines.length > 0 && (
         <div>
           {/* Contenedores por lote */}
-          {lots.filter(lot => containers.some(c => c.lotId === lot.id)).map(lot => {
-            const lotContainers = containers.filter(c => c.lotId === lot.id);
+          {lots.filter(lot => lotLines.some(l => l.lotId === lot.id)).map(lot => {
+            const lotLineItems = lotLines.filter(l => l.lotId === lot.id);
             const product = products.find(p => p.id === lot.productId);
-            const fullContainers = lotContainers.filter(c => c.status === 'DISPONIBLE');
-            const partialContainers = lotContainers.filter(c => c.status === 'EN_USO' || c.status === 'VACIO');
-            const totalCurrent = lotContainers.reduce((sum, c) => sum + (c.currentQuantity || 0), 0);
-            const totalCapacity = lotContainers.reduce((sum, c) => sum + c.capacity, 0);
             
-              return (
-                <div key={lot.id} style={{ marginBottom: '1.5rem' }}>
-                {/* Header del lote */}
+            // Solo calcular el total del lote
+            const totalUnits = lotLineItems.reduce((sum, l) => sum + (l.units || 0), 0);
+            const totalVolume = lotLineItems.reduce((sum, l) => {
+              if (l.type === 'FULL') return sum + ((l.capacity || 0) * (l.units || 0));
+              if (l.type === 'PARTIAL') return sum + (l.remainingVolume || 0);
+              return sum; // EMPTY = 0
+            }, 0);
+            const maxVolume = lotLineItems.reduce((sum, l) => sum + ((l.capacity || 0) * (l.units || 0)), 0);
+            const individualCapacity = lotLineItems[0]?.capacity || 0;
+            
+            return (
+              <div key={lot.id} style={{ marginBottom: '1.5rem' }}>
+                {/* Header del lote con total */}
                 <div style={{ 
                   background: 'var(--primary)', 
                   color: 'var(--white)', 
@@ -175,100 +179,108 @@ export default function ContainersPage() {
                   borderRadius: 'var(--radius) var(--radius) 0 0',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem'
                 }}>
                   <div>
                     <strong>{product?.name || 'Sin producto'}</strong>
+                    {lot.lotCode && <span style={{ marginLeft: '0.5rem', opacity: 0.8 }}>{lot.lotCode}</span>}
                   </div>
-                  <div style={{ fontSize: '0.85rem' }}>
-                    Total: <strong>{totalCurrent} / {totalCapacity} {product?.baseUnit}</strong>
+                  <div style={{ fontSize: '0.85rem', display: 'flex', gap: '1rem' }}>
+                    <span>{totalUnits} <span style={{ opacity: 0.7 }}>contenedores</span></span>
+                    <span><strong>{totalVolume.toFixed(1)} / {maxVolume.toFixed(1)} {product?.baseUnit}</strong></span>
                   </div>
                 </div>
                 
-                {/* Contenedores completos */}
-                {fullContainers.length > 0 && (
-                  <div style={{ 
-                    padding: '0.5rem',
-                    background: 'var(--gray-50)',
-                    borderBottom: '1px solid var(--gray-200)'
-                  }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--success)' }}>
-                      ✓ Completos: {fullContainers.length}
+                {/* Mostrar cada línea directamente */}
+                {lotLineItems.map(l => {
+                  const isFull = l.type === 'FULL';
+                  const isPartial = l.type === 'PARTIAL';
+                  const isEmpty = l.type === 'EMPTY';
+                  
+                  let bgColor = 'var(--gray-100)';
+                  let borderColor = 'var(--gray-300)';
+                  let label = '';
+                  let icon = '';
+                  
+                  if (isFull) {
+                    bgColor = 'var(--success-light)';
+                    borderColor = 'var(--success)';
+                    label = `Llenos: ${l.units}`;
+                    icon = '✓';
+                  } else if (isPartial) {
+                    bgColor = 'var(--warning-light)';
+                    borderColor = 'var(--warning)';
+                    label = `En uso: ${l.units} (${l.remainingVolume?.toFixed(1) || 0}${product?.baseUnit} restante)`;
+                    icon = '⚠';
+                  } else if (isEmpty) {
+                    bgColor = 'var(--gray-100)';
+                    borderColor = 'var(--gray-300)';
+                    label = `Vacíos: ${l.units}`;
+                    icon = '✕';
+                  }
+                  
+                  return (
+                    <div key={l.id} style={{ 
+                      padding: '0.75rem',
+                      background: bgColor,
+                      borderBottom: `1px solid ${borderColor}`
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ fontWeight: 'bold' }}>{icon}</span>
+                          <span>{label}</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
+                            ({l.capacity}{product?.baseUnit} c/u)
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          {isPartial && (
+                            <>
+                              <button 
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => openConsumeModal(l)}
+                              >
+                                Consumir
+                              </button>
+                              <button 
+                                className="btn btn-primary btn-sm"
+                                onClick={() => openRechargeModal(l)}
+                              >
+                                Recargar
+                              </button>
+                            </>
+                          )}
+                          <button 
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(l.id)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {/* Barra de progreso solo para partial */}
+                      {isPartial && l.remainingVolume !== undefined && (
+                        <div style={{ 
+                          marginTop: '0.5rem', 
+                          height: '8px', 
+                          background: 'var(--gray-200)', 
+                          borderRadius: '4px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{ 
+                            width: `${((l.remainingVolume || 0) / l.capacity) * 100}%`,
+                            height: '100%',
+                            background: 'var(--warning)',
+                            transition: 'width 0.3s'
+                          }}></div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                      {fullContainers.map(c => (
-                        <span key={c.id} className="badge badge-primary" style={{ margin: '0.1rem' }}>
-                          {c.name} ({c.capacity}{product?.baseUnit})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                
-                {/* Contenedores parciales */}
-                {partialContainers.length > 0 && (
-                  <div style={{ 
-                    padding: '0.5rem',
-                    background: 'var(--gray-100)',
-                    borderRadius: '0 0 var(--radius) var(--radius)'
-                  }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '0.25rem', color: 'var(--warning)' }}>
-                      ⚠ Parciales/Vacíos: {partialContainers.length}
-                    </div>
-                    <div className="table-container" style={{ marginTop: '0.25rem' }}>
-                      <table className="table" style={{ fontSize: '0.8rem' }}>
-                        <thead>
-                          <tr>
-                            <th>Nombre</th>
-                            <th>Capacidad</th>
-                            <th>Actual</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {partialContainers.map(c => (
-                            <tr key={c.id}>
-                              <td>{c.name}</td>
-                              <td>{c.capacity}{product?.baseUnit}</td>
-                              <td><strong>{c.currentQuantity || 0}</strong></td>
-                              <td>
-                                <span className={`badge ${c.status === 'EN_USO' ? 'badge-secondary' : 'badge-danger'}`}>
-                                  {c.status}
-                                </span>
-                              </td>
-                              <td>
-                                <div className="flex gap-1">
-                                  <button 
-                                    className="btn btn-info btn-sm"
-                                    onClick={() => viewContainerHistory(c)}
-                                    title="Historial"
-                                  >
-                                    📋
-                                  </button>
-                                  {c.status === 'EN_USO' && (
-                                    <button 
-                                      className="btn btn-secondary btn-sm"
-                                      onClick={() => openConsumeModal(c)}
-                                    >
-                                      Consumir
-                                    </button>
-                                  )}
-                                  <button 
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleDelete(c.id)}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             );
           })}
@@ -281,7 +293,7 @@ export default function ContainersPage() {
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
-                {editingContainer ? 'Editar Contenedor' : 'Nuevo Contenedor'}
+                                {editingLotLine ? 'Editar Contenedor' : 'Nuevo Contenedor'}
               </h3>
               <button 
                 className="btn btn-icon btn-secondary"
@@ -297,9 +309,16 @@ export default function ContainersPage() {
                   <select
                     className="form-select"
                     value={formData.lotId}
-                    onChange={e => setFormData({ ...formData, lotId: e.target.value })}
+                    onChange={e => {
+                      const lot = lots.find(l => l.id === e.target.value);
+                      setFormData({ 
+                        ...formData, 
+                        lotId: e.target.value,
+                        productId: lot?.productId || ''
+                      });
+                    }}
                     required
-                    disabled={!!editingContainer}
+                    disabled={!!editingLotLine}
                   >
                     <option value="">Seleccionar lote...</option>
                     {lots.map(lot => {
@@ -320,31 +339,30 @@ export default function ContainersPage() {
                     <select
                       className="form-select"
                       value={formData.type}
-                      onChange={e => setFormData({ ...formData, type: e.target.value as ContainerType })}
+                      onChange={e => setFormData({ ...formData, type: e.target.value as 'FULL' | 'PARTIAL' | 'EMPTY' })}
                     >
-                      <option value="BIDON">Bidón</option>
-                      <option value="SACO">Saco</option>
-                      <option value="BOLSA">Bolsa</option>
-                      <option value="TAMBOR">Tambor</option>
-                      <option value="OTRO">Otro</option>
+                      <option value="FULL">Lleno</option>
+                      <option value="PARTIAL">Parcial</option>
+                      <option value="EMPTY">Vacío</option>
                     </select>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Nombre (opcional)</label>
+                    <label className="form-label">Unidades *</label>
                     <input
-                      type="text"
+                      type="number"
+                      min="1"
                       className="form-input"
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      placeholder="Ej: Bidón A1"
+                      value={formData.units}
+                      onChange={e => setFormData({ ...formData, units: e.target.value })}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label className="form-label">Capacidad *</label>
+                    <label className="form-label">Capacidad por contenedor *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -370,16 +388,6 @@ export default function ContainersPage() {
                     </select>
                   </div>
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">Notas</label>
-                  <textarea
-                    className="form-textarea"
-                    value={formData.notes}
-                    onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                    placeholder="Observaciones..."
-                  />
-                </div>
               </div>
               <div className="modal-footer">
                 <button 
@@ -390,7 +398,7 @@ export default function ContainersPage() {
                   Cancelar
                 </button>
                 <button type="submit" className="btn btn-primary">
-                  {editingContainer ? 'Guardar Cambios' : 'Crear Contenedor'}
+                  {editingLotLine ? 'Guardar Cambios' : 'Crear Contenedor'}
                 </button>
               </div>
             </form>
@@ -399,11 +407,11 @@ export default function ContainersPage() {
       )}
 
       {/* Modal de Consumo */}
-      {showConsumeModal && containerToConsume && (
+      {showConsumeModal && lotLineToConsume && (
         <div className="modal-overlay" onClick={() => setShowConsumeModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Consumir del Contenedor</h3>
+              <h3 className="modal-title">Consumir del Lote</h3>
               <button 
                 className="btn btn-icon btn-secondary"
                 onClick={() => setShowConsumeModal(false)}
@@ -414,7 +422,7 @@ export default function ContainersPage() {
             <form onSubmit={handleConsume}>
               <div className="modal-body">
                 <p style={{ marginBottom: '1rem' }}>
-                  <strong>Disponible:</strong> {containerToConsume.currentQuantity || 0} {containerToConsume.unit}
+                  <strong>Disponible:</strong> {lotLineToConsume.remainingVolume?.toFixed(1) || 0} {lotLineToConsume.unit}
                 </p>
                 <div className="form-group">
                   <label className="form-label">Cantidad a consumir</label>
@@ -422,10 +430,10 @@ export default function ContainersPage() {
                     type="number"
                     step="0.01"
                     min="0"
-                    max={containerToConsume.currentQuantity || 0}
+                    max={lotLineToConsume.remainingVolume || 0}
                     className="form-input"
-                    value={consumeQuantity}
-                    onChange={e => setConsumeQuantity(e.target.value)}
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
                     required
                   />
                 </div>
@@ -447,58 +455,54 @@ export default function ContainersPage() {
         </div>
       )}
 
-      {/* Modal de Historial */}
-      {showHistoryModal && (
-        <div className="modal-overlay" onClick={() => setShowHistoryModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxHeight: '80vh' }}>
+      {/* Modal de Recarga */}
+      {showRechargeModal && lotLineToRecharge && (
+        <div className="modal-overlay" onClick={() => setShowRechargeModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3 className="modal-title">Historial del Contenedor</h3>
+              <h3 className="modal-title">Recargar Contenedor</h3>
               <button 
                 className="btn btn-icon btn-secondary"
-                onClick={() => setShowHistoryModal(false)}
+                onClick={() => setShowRechargeModal(false)}
               >
                 ✕
               </button>
             </div>
-            <div className="modal-body" style={{ overflowY: 'auto' }}>
-              {loadingHistory ? (
-                <div className="loading"><div className="spinner"></div></div>
-              ) : containerHistory.length === 0 ? (
-                <p style={{ textAlign: 'center', color: 'var(--gray-600)' }}>
-                  No hay movimientos registrados
+            <form onSubmit={handleRecharge}>
+              <div className="modal-body">
+                <p style={{ marginBottom: '1rem' }}>
+                  <strong>Restante actual:</strong> {lotLineToRecharge.remainingVolume?.toFixed(1) || 0} {lotLineToRecharge.unit}
                 </p>
-              ) : (
-                <div style={{ fontSize: '0.85rem' }}>
-                  {containerHistory.map(movement => (
-                    <div 
-                      key={movement.id} 
-                      style={{ 
-                        padding: '0.75rem', 
-                        borderBottom: '1px solid var(--gray-200)',
-                        background: movement.type === 'CONSUMO' ? 'var(--danger-light)' : 'var(--success)'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <strong>
-                          {movement.type === 'CONSUMO' ? 'Consumo' : movement.type === 'RECARGA' ? 'Recarga' : 'Ajuste'}
-                        </strong>
-                        <span style={{ color: 'var(--gray-600)' }}>
-                          {new Date(movement.createdAt).toLocaleString('es-AR')}
-                        </span>
-                      </div>
-                      <div>
-                        Cantidad: <strong>{movement.quantity}</strong> | Anterior: {movement.previousQuantity}
-                      </div>
-                      {movement.notes && (
-                        <div style={{ color: 'var(--gray-600)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
-                          {movement.notes}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                <p style={{ marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                  Capacidad máxima: {lotLineToRecharge.capacity} {lotLineToRecharge.unit}
+                </p>
+                <div className="form-group">
+                  <label className="form-label">Cantidad a agregar (dejar vacío para llenar)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={lotLineToRecharge.capacity}
+                    className="form-input"
+                    value={quantity}
+                    onChange={e => setQuantity(e.target.value)}
+                    placeholder={`Max: ${lotLineToRecharge.capacity}`}
+                  />
                 </div>
-              )}
-            </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => setShowRechargeModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Recargar
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useProducts } from '../hooks/useData';
-import { Product, BaseUnit } from '../types';
-import { settingsApi } from '../services/api';
+import { Product, BaseUnit, DoseType, DoseUnit } from '../types';
+import { settingsService } from '../services';
 
 interface SettingItem {
   id: string;
@@ -23,8 +23,11 @@ export default function ProductsPage() {
     typeId: '',
     stateId: '',
     baseUnit: 'KG' as BaseUnit,
+    doseType: 'PER_HECTARE' as DoseType,
+    doseUnit: 'BASE_UNIT' as DoseUnit,
     dosePerHectareMin: '',
     dosePerHectareMax: '',
+    concentrationPerLiter: '',
     concentration: ''
   });
 
@@ -36,8 +39,8 @@ export default function ProductsPage() {
     setSettingsLoading(true);
     try {
       const [types, states] = await Promise.all([
-        settingsApi.getProductTypes(),
-        settingsApi.getProductStates()
+        settingsService.getProductTypes(),
+        settingsService.getProductStates()
       ]);
       setProductTypes(types);
       setProductStates(states);
@@ -61,8 +64,11 @@ export default function ProductsPage() {
       typeId: productTypes[0]?.id || '',
       stateId: productStates[0]?.id || '',
       baseUnit: 'KG',
+      doseType: 'PER_HECTARE',
+      doseUnit: 'BASE_UNIT',
       dosePerHectareMin: '',
       dosePerHectareMax: '',
+      concentrationPerLiter: '',
       concentration: ''
     });
     setEditingProduct(null);
@@ -76,8 +82,11 @@ export default function ProductsPage() {
         typeId: (product as any).type?.id || product.typeId || '',
         stateId: (product as any).state?.id || product.stateId || '',
         baseUnit: product.baseUnit,
+        doseType: product.doseType || 'PER_HECTARE',
+        doseUnit: product.doseUnit || 'BASE_UNIT',
         dosePerHectareMin: product.dosePerHectareMin?.toString() || '',
         dosePerHectareMax: product.dosePerHectareMax?.toString() || '',
+        concentrationPerLiter: product.concentrationPerLiter?.toString() || '',
         concentration: product.concentration?.toString() || ''
       });
     } else {
@@ -94,23 +103,48 @@ export default function ProductsPage() {
     return (product as any).state?.name || product.state || '-';
   };
 
+  // Obtener unidad de dosis para mostrar
+  const getDoseUnit = (product: Product): string => {
+    if (product.doseUnit && product.doseUnit !== 'BASE_UNIT') {
+      return product.doseUnit;
+    }
+    return product.baseUnit;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Función para convertir string a número o null si está vacío
+    const toNumber = (value: string): number | null => {
+      if (!value || value.trim() === '') return null;
+      const num = parseFloat(value);
+      return isNaN(num) ? null : num;
+    };
     
     const data = {
       name: formData.name,
       typeId: formData.typeId,
       stateId: formData.stateId,
       baseUnit: formData.baseUnit,
-      dosePerHectareMin: formData.dosePerHectareMin ? parseFloat(formData.dosePerHectareMin) : undefined,
-      dosePerHectareMax: formData.dosePerHectareMax ? parseFloat(formData.dosePerHectareMax) : undefined,
-      concentration: formData.concentration ? parseFloat(formData.concentration) : undefined
+      doseType: formData.doseType,
+      doseUnit: formData.doseUnit,
+      dosePerHectareMin: toNumber(formData.dosePerHectareMin),
+      dosePerHectareMax: toNumber(formData.dosePerHectareMax),
+      concentrationPerLiter: toNumber(formData.concentrationPerLiter),
+      concentration: toNumber(formData.concentration)
     };
+    try{
 
-    if (editingProduct) {
-      await updateProduct(editingProduct.id, data);
-    } else {
-      await addProduct(data);
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, data);
+      } else {
+        await addProduct(data);
+      }
+    }
+    catch(e:any)
+    {
+      console.log(e.message)
+      alert(e.message)
     }
 
     setShowModal(false);
@@ -200,7 +234,13 @@ export default function ProductsPage() {
                   {product.dosePerHectareMin && product.dosePerHectareMax && (
                     <div className="card-mobile-section">
                       <span className="card-mobile-label">Dosis/ha:</span>
-                      <span>{product.dosePerHectareMin}-{product.dosePerHectareMax}</span>
+                      <span>{product.dosePerHectareMin}-{product.dosePerHectareMax} {getDoseUnit(product)}/ha</span>
+                    </div>
+                  )}
+                  {product.concentrationPerLiter && (
+                    <div className="card-mobile-section">
+                      <span className="card-mobile-label">Conc:</span>
+                      <span>{product.concentrationPerLiter} cc/L</span>
                     </div>
                   )}
                 </div>
@@ -250,7 +290,7 @@ export default function ProductsPage() {
                     <td>{product.baseUnit}</td>
                     <td>
                       {product.dosePerHectareMin && product.dosePerHectareMax 
-                        ? `${product.dosePerHectareMin}-${product.dosePerHectareMax}` 
+                        ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` 
                         : '-'}
                     </td>
                     <td>
@@ -350,32 +390,131 @@ export default function ProductsPage() {
                     <option value="G">Gramos (g)</option>
                     <option value="L">Litros (L)</option>
                     <option value="ML">Mililitros (ml)</option>
+                    <option value="CC">Centímetros cúbicos (cc)</option>
                   </select>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Dosis mínima (kg/L por ha)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-input"
-                      value={formData.dosePerHectareMin}
-                      onChange={e => setFormData({ ...formData, dosePerHectareMin: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label className="form-label">Dosis máxima (kg/L por ha)</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-input"
-                      value={formData.dosePerHectareMax}
-                      onChange={e => setFormData({ ...formData, dosePerHectareMax: e.target.value })}
-                    />
+                <div className="form-group">
+                  <label className="form-label">Tipo de Dosificación *</label>
+                  <div className="form-row" style={{ gap: '1rem', marginTop: '0.5rem' }}>
+                    <label className="flex items-center gap-1" style={{ cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="doseType"
+                        value="PER_HECTARE"
+                        checked={formData.doseType === 'PER_HECTARE'}
+                        onChange={e => setFormData({ ...formData, doseType: e.target.value as DoseType })}
+                      />
+                      Por Hectárea (ha)
+                    </label>
+                    <label className="flex items-center gap-1" style={{ cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="doseType"
+                        value="CONCENTRATION"
+                        checked={formData.doseType === 'CONCENTRATION'}
+                        onChange={e => setFormData({ ...formData, doseType: e.target.value as DoseType })}
+                      />
+                      Concentración (cc/L)
+                    </label>
                   </div>
                 </div>
+
+                {formData.doseType === 'PER_HECTARE' && (
+                  <div className="form-group">
+                    <label className="form-label">Unidad de Dosis</label>
+                    <select
+                      className="form-select"
+                      value={formData.doseUnit}
+                      onChange={e => setFormData({ ...formData, doseUnit: e.target.value as DoseUnit })}
+                    >
+                      <option value="BASE_UNIT">Usar unidad base ({formData.baseUnit})</option>
+                      <option value="CC">cc (centímetros cúbicos)</option>
+                      <option value="ML">ml (mililitros)</option>
+                      <option value="L">L (litros)</option>
+                      <option value="G">g (gramos)</option>
+                      <option value="KG">kg (kilogramos)</option>
+                    </select>
+                    
+                    {/* Tabla de conversiones */}
+                    {formData.doseUnit !== 'BASE_UNIT' && (
+                      <div style={{ marginTop: '0.75rem', padding: '0.75rem', background: 'var(--gray-50)', borderRadius: '4px', fontSize: '0.75rem' }}>
+                        <strong style={{ display: 'block', marginBottom: '0.5rem' }}>Tabla de conversiones:</strong>
+                        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                          <tbody>
+                            <tr>
+                              <td style={{ padding: '2px 4px' }}>1 L</td>
+                              <td style={{ padding: '2px 4px' }}>= 1000 cc</td>
+                              <td style={{ padding: '2px 4px' }}>= 1000 ml</td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '2px 4px' }}>1 ml</td>
+                              <td style={{ padding: '2px 4px' }}>= 1 cc</td>
+                              <td style={{ padding: '2px 4px' }}></td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '2px 4px' }}>1 kg</td>
+                              <td style={{ padding: '2px 4px' }}>= 1000 g</td>
+                              <td style={{ padding: '2px 4px' }}></td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '2px 4px' }}>1 g</td>
+                              <td style={{ padding: '2px 4px' }}>= 1000 mg</td>
+                              <td style={{ padding: '2px 4px' }}></td>
+                            </tr>
+                            <tr>
+                              <td style={{ padding: '2px 4px' }}>1 L agua</td>
+                              <td style={{ padding: '2px 4px' }}>= 1 kg</td>
+                              <td style={{ padding: '2px 4px' }}></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {formData.doseType === 'PER_HECTARE' ? (
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label className="form-label">
+                        Dosis mínima ({formData.doseUnit === 'BASE_UNIT' ? formData.baseUnit : formData.doseUnit} por ha)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-input"
+                        value={formData.dosePerHectareMin}
+                        onChange={e => setFormData({ ...formData, dosePerHectareMin: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label className="form-label">
+                        Dosis máxima ({formData.doseUnit === 'BASE_UNIT' ? formData.baseUnit : formData.doseUnit} por ha)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="form-input"
+                        value={formData.dosePerHectareMax}
+                        onChange={e => setFormData({ ...formData, dosePerHectareMax: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <label className="form-label">Concentración (cc/L)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="form-input"
+                      value={formData.concentrationPerLiter}
+                      onChange={e => setFormData({ ...formData, concentrationPerLiter: e.target.value })}
+                      placeholder="Ej: 50 cc por litro de agua"
+                    />
+                  </div>
+                )}
 
                 <div className="form-group">
                   <label className="form-label">Concentración (%)</label>

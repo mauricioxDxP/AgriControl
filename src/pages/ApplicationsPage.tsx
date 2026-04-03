@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useApplications, useFields, useLots, useProducts, useDosageCalculation } from '../hooks/useData';
-import { movementsApi } from '../services/api';
+import { movementsService } from '../services';
 import { ApplicationType, Application } from '../types';
-import ApplicationWizard from '../components/ApplicationWizard';
+import ApplicationWizard from '../features/applications/components/ApplicationWizard';
+import { convertDoseToBaseUnit } from '../utils/unitConversions';
 
 export default function ApplicationsPage() {
   const { applications, loading, addApplication, updateApplication, deleteApplication } = useApplications();
@@ -41,7 +42,7 @@ export default function ApplicationsPage() {
     const stocks: Record<string, number> = {};
     for (const lot of lots) {
       try {
-        const result = await movementsApi.getLotStock(lot.id);
+        const result = await movementsService.getLotStock(lot.id);
         stocks[lot.id] = result.stock;
       } catch {
         stocks[lot.id] = lot.initialStock;
@@ -91,11 +92,30 @@ export default function ApplicationsPage() {
       const usedProductIds = selectedProducts.map(p => p.productId);
       const availableProduct = products.find(p => !usedProductIds.includes(p.id));
       if (availableProduct) {
+        const totalHa = selectedField?.area || 0;
+        let quantityUsed = '';
+        
+        if (availableProduct.doseType === 'CONCENTRATION') {
+          // Para concentración: cc/L * litros de agua / 1000 = litros de producto
+          const waterAmount = parseFloat(formData.waterAmount) || 0;
+          const concPerLiter = availableProduct.concentrationPerLiter || 0;
+          if (waterAmount > 0 && concPerLiter > 0) {
+            quantityUsed = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+          }
+        } else {
+          // Para dosis por hectárea - con conversión
+          const dose = availableProduct.dosePerHectareMin || 0;
+          if (totalHa > 0 && dose > 0) {
+            const convertedDose = convertDoseToBaseUnit(dose, availableProduct.doseUnit, availableProduct.baseUnit);
+            quantityUsed = (totalHa * convertedDose).toFixed(2);
+          }
+        }
+        
         setSelectedProducts([...selectedProducts, { 
           productId: availableProduct.id, 
-          dosePerHectare: '',
-          concentration: availableProduct.concentration?.toString() || '',
-          quantityUsed: '',
+          dosePerHectare: availableProduct.doseType !== 'CONCENTRATION' ? (availableProduct.dosePerHectareMin?.toString() || '') : '',
+          concentration: availableProduct.doseType === 'CONCENTRATION' ? (availableProduct.concentrationPerLiter?.toString() || '') : (availableProduct.concentration?.toString() || ''),
+          quantityUsed: quantityUsed,
           lots: []
         }]);
       }
@@ -145,11 +165,50 @@ export default function ApplicationsPage() {
     const updated = [...selectedProducts];
     (updated[index] as any)[field] = value;
     
-    // Auto-calculate quantity when dosePerHectare changes
+    // Auto-calculate when product is selected
+    if (field === 'productId' && selectedField) {
+      const product = products.find(p => p.id === value);
+      const totalHa = selectedField.area || 0;
+      const waterAmount = parseFloat(formData.waterAmount) || 0;
+      
+      if (product) {
+        if (product.doseType === 'CONCENTRATION') {
+          // Para concentración: cc/L * litros de agua / 1000 = litros de producto
+          const concPerLiter = product.concentrationPerLiter || 0;
+          if (waterAmount > 0 && concPerLiter > 0) {
+            updated[index].concentration = concPerLiter.toString();
+            updated[index].quantityUsed = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+          }
+          updated[index].dosePerHectare = '';
+        } else if (product.dosePerHectareMin) {
+          updated[index].dosePerHectare = product.dosePerHectareMin.toString();
+          const convertedDose = convertDoseToBaseUnit(product.dosePerHectareMin, product.doseUnit, product.baseUnit);
+          updated[index].quantityUsed = (totalHa * convertedDose).toFixed(2);
+          updated[index].concentration = product.concentration?.toString() || '';
+        }
+      }
+    }
+    
+    // Auto-calculate quantity when dosePerHectare changes (solo para PER_HECTARE)
     if (field === 'dosePerHectare' && selectedField) {
       const dose = parseFloat(value) || 0;
-      if (selectedField.area > 0 && dose > 0) {
-        updated[index].quantityUsed = (selectedField.area * dose).toFixed(2);
+      const product = products.find(p => p.id === updated[index].productId);
+      if (product && product.doseType !== 'CONCENTRATION' && selectedField.area > 0 && dose > 0) {
+        // Convertir la dosis a la unidad base del producto
+        const convertedDose = convertDoseToBaseUnit(dose, product.doseUnit, product.baseUnit);
+        updated[index].quantityUsed = (selectedField.area * convertedDose).toFixed(2);
+      }
+    }
+    
+    // Auto-calculate quantity when concentration changes (para CONCENTRATION)
+    if (field === 'concentration' && selectedField) {
+      const product = products.find(p => p.id === updated[index].productId);
+      if (product && product.doseType === 'CONCENTRATION') {
+        const waterAmount = parseFloat(formData.waterAmount) || 0;
+        const concPerLiter = parseFloat(value) || 0;
+        if (waterAmount > 0 && concPerLiter > 0) {
+          updated[index].quantityUsed = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+        }
       }
     }
     
@@ -158,6 +217,18 @@ export default function ApplicationsPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Recolectar todos los lotes usados en los productos
+    const allLots: { lotId: string; quantityUsed: number }[] = [];
+    selectedProducts.forEach(p => {
+      const productLots = p.lots?.filter(l => l.quantityUsed > 0).map(l => ({
+        lotId: l.lotId,
+        quantityUsed: l.quantityUsed
+      }));
+      if (productLots) {
+        allLots.push(...productLots);
+      }
+    });
     
     const appData = {
       fieldId: formData.fieldId,
@@ -174,8 +245,11 @@ export default function ApplicationsPage() {
           lotId: l.lotId,
           quantityUsed: l.quantityUsed
         }))
-      }))
+      })),
+      lots: allLots  // Enviar lotes a nivel raíz para que el backend los procese
     };
+
+    console.log('Submitting application:', appData);
 
     if (editingApplication) {
       await updateApplication(editingApplication.id, appData);
@@ -192,7 +266,7 @@ export default function ApplicationsPage() {
       const stocks: Record<string, number> = {};
       for (const lot of lots) {
         try {
-          const result = await movementsApi.getLotStock(lot.id);
+          const result = await movementsService.getLotStock(lot.id);
           stocks[lot.id] = result.stock;
         } catch {
           stocks[lot.id] = lot.initialStock;
@@ -370,15 +444,17 @@ export default function ApplicationsPage() {
                     </td>
                     <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
                     <td>
-                      {app.applicationProducts?.map((ap, idx) => (
+                      {app.applicationProducts?.map((ap, idx) => {
+                        const doseUnitLabel = ap.product?.doseUnit && ap.product.doseUnit !== 'BASE_UNIT' ? ap.product.doseUnit : ap.product?.baseUnit;
+                        return (
                         <div key={idx} style={{ marginBottom: '0.25rem' }}>
                           <span className="badge badge-primary">
                             {ap.product?.name || '-'}
-                            {ap.dosePerHectare ? ` ${ap.dosePerHectare}${ap.product?.baseUnit}/ha` : ''}
+                            {ap.dosePerHectare ? ` ${ap.dosePerHectare}${doseUnitLabel}/ha` : ''}
                             : {ap.quantityUsed} {ap.product?.baseUnit}
                           </span>
                         </div>
-                      ))}
+                      )})}
                     </td>
                     <td className="hide-mobile">{app.waterAmount ? `${app.waterAmount}L` : '-'}</td>
                     <td>
@@ -491,16 +567,37 @@ export default function ApplicationsPage() {
                               </option>
                             ))}
                           </select>
-                          <input
-                            type="number"
-                            step="0.01"
-                            className="form-input"
-                            value={sp.dosePerHectare}
-                            onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
-                            placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Máx: ${product?.dosePerHectareMax || '-'}`}
-                            style={{ flex: 1 }}
-                          />
-                          {(product?.state?.name || product?.state) === 'LIQUIDO' && (
+                          
+                          {product?.doseType === 'CONCENTRATION' ? (
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
+                                Concentración (cc/L)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.1"
+                                className="form-input"
+                                value={sp.concentration || ''}
+                                onChange={e => handleProductChange(index, 'concentration', e.target.value)}
+                                placeholder={product.concentrationPerLiter?.toString() || 'cc/L'}
+                              />
+                            </div>
+                          ) : (
+                            <div style={{ flex: 1 }}>
+                              <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
+                                Dosis ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit}/ha)
+                              </label>
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="form-input"
+                                value={sp.dosePerHectare}
+                                onChange={e => handleProductChange(index, 'dosePerHectare', e.target.value)}
+                                placeholder={`Min: ${product?.dosePerHectareMin || '-'} - Máx: ${product?.dosePerHectareMax || '-'}`}
+                              />
+                            </div>
+                          )}
+                          {(product?.state?.name || product?.state) === 'LIQUIDO' && product?.doseType !== 'CONCENTRATION' && (
                             <input
                               type="number"
                               step="0.1"
@@ -534,10 +631,15 @@ export default function ApplicationsPage() {
                               📋 <strong>Rango recomendado para {product.name}:</strong>
                             </div>
                             <div>
-                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.baseUnit}/ha</strong>
+                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product.baseUnit}/ha</strong>
                             </div>
                             <div style={{ marginTop: '0.25rem' }}>
-                              Cantidad recomendada: <strong>{(selectedField.area * (product.dosePerHectareMin || 0)).toFixed(2)} - {(selectedField.area * (product.dosePerHectareMax || 0)).toFixed(2)} {product.baseUnit}</strong>
+                              Cantidad recomendada: <strong>
+                                {(() => {
+                                  const doseMin = convertDoseToBaseUnit(product.dosePerHectareMin || 0, product.doseUnit, product.baseUnit);
+                                  const doseMax = convertDoseToBaseUnit(product.dosePerHectareMax || 0, product.doseUnit, product.baseUnit);
+                                  return `${(selectedField.area * doseMin).toFixed(2)} - ${(selectedField.area * doseMax).toFixed(2)}`;
+                                })()} {product.baseUnit}</strong>
                             </div>
                           </div>
                         )}

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useLots, useProducts, useContainers } from '../hooks/useData';
+import { useLots, useProducts, useLotLines } from '../hooks/useData';
 import { ContainerType, Lot } from '../types';
 
 export default function LotsPage() {
   const { lots, loading, addLot, updateLot, deleteLot } = useLots();
   const { products } = useProducts();
-  const { addContainer } = useContainers();
+  const { addLotLine } = useLotLines();
   const [showModal, setShowModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingLot, setEditingLot] = useState<Lot | null>(null);
@@ -105,30 +105,40 @@ export default function LotsPage() {
       const numContainers = Math.floor(stock / containerCapacity);
       const remainingStock = stock % containerCapacity;
       
-      // Create full containers (one per unit)
-      for (let i = 0; i < numContainers; i++) {
-        await addContainer({
+      // Create full containers
+      if (numContainers > 0) {
+        await addLotLine({
           lotId: lot.id,
-          type: formData.containerType,
+          productId: lot.productId,
+          type: 'FULL',
+          units: numContainers,
           capacity: containerCapacity,
-          unit: unit,
-          status: 'DISPONIBLE',
-          name: `${formData.containerType} #${i + 1}`
+          unit: unit as any,
+          remainingVolume: containerCapacity
         });
       }
       
       // Create partially filled container if there's remaining stock
       if (remainingStock > 0) {
-        await addContainer({
+        await addLotLine({
           lotId: lot.id,
-          type: formData.containerType,
+          productId: lot.productId,
+          type: 'PARTIAL',
+          units: 1,
           capacity: containerCapacity,
-          unit: unit,
-          status: 'EN_USO',
-          name: `${formData.containerType} parcial (${remainingStock}${unit})`
+          unit: unit as any,
+          remainingVolume: remainingStock
         });
       }
     }
+    // await addLotLine({
+    //       lotId: lot.id,
+    //       productId: lot.productId,
+    //       type: 'EMPTY',
+    //       units: 0,
+    //       capacity: containerCapacity,
+    //       remainingVolume: 0
+    //     });
 
     setShowModal(false);
     resetForm();

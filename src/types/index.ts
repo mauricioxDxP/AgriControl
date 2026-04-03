@@ -2,11 +2,13 @@
 
 export type ProductType = 'SEMILLA' | 'FERTILIZANTE' | 'PESTICIDA' | 'HERBICIDA' | 'FUNGICIDA' | 'INSECTICIDA' | 'OTRO';
 export type ProductState = 'LIQUIDO' | 'SOLIDO' | 'POLVO' | 'GRANULADO' | 'GEL';
-export type BaseUnit = 'KG' | 'G' | 'L' | 'ML';
+export type BaseUnit = 'KG' | 'G' | 'L' | 'ML' | 'CC';
 export type ApplicationType = 'FUMIGACION' | 'SIEMBRA';
 export type MovementType = 'ENTRADA' | 'SALIDA';
 export type ContainerType = 'BIDON' | 'SACO' | 'BOLSA' | 'TAMBOR' | 'TANQUE' | 'OTRO';
 export type ContainerStatus = 'DISPONIBLE' | 'EN_USO' | 'VACIO';
+export type DoseType = 'PER_HECTARE' | 'CONCENTRATION';
+export type DoseUnit = 'BASE_UNIT' | 'CC' | 'ML' | 'G' | 'KG' | 'L';
 
 // Interfaces for settings
 export interface ProductTypeModel {
@@ -32,9 +34,12 @@ export interface Product {
   type?: ProductTypeModel;
   state?: ProductStateModel;
   baseUnit: BaseUnit;
-  dosePerHectareMin?: number;
-  dosePerHectareMax?: number;
-  concentration?: number;
+  doseType?: DoseType;
+  doseUnit?: DoseUnit;
+  dosePerHectareMin?: number | null;
+  dosePerHectareMax?: number | null;
+  concentrationPerLiter?: number | null;
+  concentration?: number | null;
   createdAt: string;
   updatedAt: string;
   synced: boolean;
@@ -168,18 +173,35 @@ export interface CreateApplicationInput {
   products?: { 
     productId: string; 
     dosePerHectare?: number; 
-    concentration?: number; 
+    concentration?: number;
+    concentrationPerLiter?: number;
     quantityUsed: number;
     lots?: { lotId: string; quantityUsed: number }[];
   }[];
   lots?: { lotId: string; quantityUsed: number }[];
 }
 
+// Línea de lote (agrupación de contenedores por estado)
+export interface LotLine {
+  id: string;
+  lotId: string;
+  productId: string;
+  type: 'FULL' | 'PARTIAL' | 'EMPTY';
+  units: number;
+  remainingVolume?: number;
+  capacity: number;
+  unit: BaseUnit;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+}
+
 // Contenedor (bidón, saco, bolsa, tambor)
+// @deprecated - Usar LotLine en su lugar
 export interface Container {
   id: string;
   lotId: string;
-  type: ContainerType;
+  typeId: string;
   capacity: number;
   unit: BaseUnit;
   status: ContainerStatus;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { settingsApi } from '../services/api';
+import { settingsService } from '../services';
 
 interface SettingItem {
   id: string;
@@ -78,9 +78,9 @@ export default function SettingsPage() {
     setLoading(true);
     try {
       const [types, states, containers] = await Promise.all([
-        settingsApi.getProductTypes(),
-        settingsApi.getProductStates(),
-        settingsApi.getContainerTypes()
+        settingsService.getProductTypes(),
+        settingsService.getProductStates(),
+        settingsService.getContainerTypes()
       ]);
       setProductTypes(types);
       setProductStates(states);
@@ -95,7 +95,7 @@ export default function SettingsPage() {
   const addProductType = async () => {
     if (newProductType) {
       try {
-        await settingsApi.createProductType(newProductType);
+        await settingsService.createProductType(newProductType);
         await loadData();
         setNewProductType('');
       } catch (error) {
@@ -107,7 +107,7 @@ export default function SettingsPage() {
   const removeProductType = async (id: string) => {
     if (confirm('¿Eliminar este tipo de producto?')) {
       try {
-        await settingsApi.deleteProductType(id);
+        await settingsService.deleteProductType(id);
         await loadData();
       } catch (error) {
         console.error('Error removing product type:', error);
@@ -119,7 +119,7 @@ export default function SettingsPage() {
   const addProductState = async () => {
     if (newProductState) {
       try {
-        await settingsApi.createProductState(newProductState);
+        await settingsService.createProductState(newProductState);
         await loadData();
         setNewProductState('');
       } catch (error) {
@@ -131,7 +131,7 @@ export default function SettingsPage() {
   const removeProductState = async (id: string) => {
     if (confirm('¿Eliminar este estado de producto?')) {
       try {
-        await settingsApi.deleteProductState(id);
+        await settingsService.deleteProductState(id);
         await loadData();
       } catch (error) {
         console.error('Error removing product state:', error);
@@ -143,7 +143,7 @@ export default function SettingsPage() {
   const addContainerType = async () => {
     if (newContainerType) {
       try {
-        await settingsApi.createContainerType(newContainerType);
+        await settingsService.createContainerType(newContainerType);
         await loadData();
         setNewContainerType('');
       } catch (error) {
@@ -155,7 +155,7 @@ export default function SettingsPage() {
   const removeContainerType = async (id: string) => {
     if (confirm('¿Eliminar este tipo de contenedor?')) {
       try {
-        await settingsApi.deleteContainerType(id);
+        await settingsService.deleteContainerType(id);
         await loadData();
       } catch (error) {
         console.error('Error removing container type:', error);
