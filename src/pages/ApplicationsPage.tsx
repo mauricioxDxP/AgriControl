@@ -33,7 +33,7 @@ export default function ApplicationsPage() {
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
   const [editingApplication, setEditingApplication] = useState<Application | null>(null);
-  const [autoDosage, setAutoDosage] = useState<boolean>(() => {
+  const [autoDosage] = useState<boolean>(() => {
     const saved = localStorage.getItem('auto-dosage');
     return saved !== null ? saved === 'true' : false;
   });

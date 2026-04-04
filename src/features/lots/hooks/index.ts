@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { dbHelpers } from '../../../db/database';
 import { lotsService } from '../services';
 import { Lot } from '../../../types';
-import { containersService } from '@/services';
 
 export function useLots(productId?: string) {
   const [lots, setLots] = useState<Lot[]>([]);

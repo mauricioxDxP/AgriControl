@@ -3,7 +3,7 @@ import { useLotLines, useLots, useProducts } from '../hooks/useData';
 import { LotLine, BaseUnit, Lot } from '../types';
 
 export default function ContainersPage() {
-  const { lotLines, loading, addLotLine, updateLotLine, consumeLotLine, rechargeLotLine, deleteLotLine } = useLotLines();
+  const { lotLines, loading, addLotLine, updateLotLine, consumeLotLine, rechargeLotLine } = useLotLines();
   const { lots } = useLots();
   const { products } = useProducts();
   const [showModal, setShowModal] = useState(false);
@@ -137,12 +137,6 @@ export default function ContainersPage() {
     setShowRechargeModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('¿Estás seguro de eliminar este contenedor?')) {
-      await deleteLotLine(id);
-    }
-  };
-
   if (loading) {
     return (
       <div className="loading">
@@ -203,8 +197,6 @@ export default function ContainersPage() {
               return sum; // EMPTY = 0
             }, 0);
             const maxVolume = lotLineItems.reduce((sum, l) => sum + ((l.capacity || 0) * (l.units || 0)), 0);
-            const individualCapacity = lotLineItems[0]?.capacity || 0;
-            
             return (
               <div key={lot.id} style={{ marginBottom: '1.5rem' }}>
                 {/* Header del lote con total */}

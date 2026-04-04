@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { dbHelpers } from '../db/database';
-import { productsService, lotsService, fieldsService, applicationsService, containersService, movementsService, tancadasService, tanksService, syncService } from '../services';
-import { Product, Lot, Field, Application, CreateApplicationInput, Container, Movement, Tancada, Tank, CreateTancadaInput } from '../types';
+import { dbHelpers } from '../../db/database';
+import { productsService, lotsService, fieldsService, applicationsService, containersService, movementsService, tancadasService, tanksService, syncService } from '../../services';
+import { Product, Lot, Field, Application, CreateApplicationInput, Container, Movement, Tancada, Tank, CreateTancadaInput } from '../../types';
 
 // Hook para detectar estado online/offline
 export function useOnlineStatus() {
@@ -373,7 +373,7 @@ export function useApplications(fieldId?: string) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false,
-      applicationProducts: products?.map(p => ({
+      applicationProducts: (products || []).map(p => ({
         id: uuidv4(),
         applicationId: '',
         productId: p.productId,
@@ -383,7 +383,7 @@ export function useApplications(fieldId?: string) {
         createdAt: new Date().toISOString(),
         synced: false
       })),
-      applicationLots: lots?.map(l => ({
+      applicationLots: (lots || []).map(l => ({
         id: uuidv4(),
         applicationId: '',
         lotId: l.lotId,
@@ -433,7 +433,7 @@ export function useApplications(fieldId?: string) {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false,
-      applicationProducts: products?.map(p => ({
+      applicationProducts: (products || []).map(p => ({
         id: uuidv4(),
         applicationId: id,
         productId: p.productId,
@@ -443,7 +443,7 @@ export function useApplications(fieldId?: string) {
         createdAt: new Date().toISOString(),
         synced: false
       })),
-      applicationLots: lots?.map(l => ({
+      applicationLots: (lots || []).map(l => ({
         id: uuidv4(),
         applicationId: id,
         lotId: l.lotId,
@@ -576,7 +576,7 @@ export function useContainers(lotId?: string) {
         const data = lotId 
           ? await containersService.getByLot(lotId)
           : await containersService.getAll();
-        setContainers(data);
+        setContainers(data as unknown as Container[]);
       } else {
         const localData = lotId
           ? await dbHelpers.getContainersByLot(lotId)
@@ -601,7 +601,7 @@ export function useContainers(lotId?: string) {
     const newContainer: Container = {
       id: uuidv4(),
       lotId: data.lotId || '',
-      type: data.type || 'BIDON',
+      typeId: data.typeId || '',
       capacity: data.capacity || 0,
       unit: data.unit || 'L',
       status: data.status || 'DISPONIBLE',
@@ -614,9 +614,9 @@ export function useContainers(lotId?: string) {
 
     if (isOnline) {
       try {
-        const created = await containersService.create(newContainer);
-        await dbHelpers.addContainer(created);
-        setContainers(prev => [created, ...prev]);
+        const created = await containersService.create(newContainer as any);
+        await dbHelpers.addContainer(created as any);
+        setContainers(prev => [created as unknown as Container, ...prev]);
         return created;
       } catch {
         await dbHelpers.addContainer(newContainer);
@@ -635,18 +635,18 @@ export function useContainers(lotId?: string) {
     
     if (isOnline) {
       try {
-        const result = await containersService.update(id, updated);
-        await dbHelpers.updateContainer(id, result);
-        setContainers(prev => prev.map(c => c.id === id ? result : c));
+        const result = await containersService.update(id, updated as any);
+        await dbHelpers.updateContainer(id, result as any);
+        setContainers(prev => prev.map(c => c.id === id ? result as any : c));
         return result;
       } catch {
-        await dbHelpers.updateContainer(id, updated);
-        setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c));
+        await dbHelpers.updateContainer(id, updated as any);
+        setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } as any : c));
         return { ...containers.find(c => c.id === id), ...updated };
       }
     } else {
-      await dbHelpers.updateContainer(id, updated);
-      setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } : c));
+      await dbHelpers.updateContainer(id, updated as any);
+      setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } as any : c));
       return { ...containers.find(c => c.id === id), ...updated };
     }
   };
@@ -667,7 +667,7 @@ export function useContainers(lotId?: string) {
     setContainers(prev => prev.filter(c => c.id !== id));
   };
 
-  return { containers, loading, addContainer, updateContainer, consumeContainer, deleteContainer, refresh: loadContainers };
+  return { containers: containers as unknown as Container[], loading, addContainer, updateContainer, consumeContainer, deleteContainer, refresh: loadContainers };
 }
 
 // Hook para movimientos
@@ -745,7 +745,7 @@ export function useTancadas() {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false,
-      tancadaProducts: data.products?.map(p => ({
+      tancadaProducts: data.products?.map((p: CreateTancadaInput['products'][number]) => ({
         id: uuidv4(),
         tancadaId: '',
         productId: p.productId,
@@ -755,7 +755,7 @@ export function useTancadas() {
         createdAt: new Date().toISOString(),
         synced: false
       })),
-      tancadaFields: data.fields?.map(f => ({
+      tancadaFields: data.fields?.map((f: CreateTancadaInput['fields'][number]) => ({
         id: uuidv4(),
         tancadaId: '',
         fieldId: f.fieldId,
@@ -820,7 +820,7 @@ export function useTancadas() {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           synced: false,
-          tancadaProducts: data.products?.map(p => ({
+          tancadaProducts: data.products?.map((p: CreateTancadaInput['products'][number]) => ({
             id: uuidv4(),
             tancadaId: id,
             productId: p.productId,
@@ -830,7 +830,7 @@ export function useTancadas() {
             createdAt: new Date().toISOString(),
             synced: false
           })),
-          tancadaFields: data.fields?.map(f => ({
+          tancadaFields: data.fields?.map((f: CreateTancadaInput['fields'][number]) => ({
             id: uuidv4(),
             tancadaId: id,
             fieldId: f.fieldId,
