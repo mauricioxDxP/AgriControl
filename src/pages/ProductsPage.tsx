@@ -126,7 +126,7 @@ export default function ProductsPage() {
     
     const data = {
       name: formData.name,
-      genericName: formData.genericName || null,
+      genericName: formData.genericName || undefined,
       typeId: formData.typeId,
       stateId: formData.stateId,
       baseUnit: formData.baseUnit,
