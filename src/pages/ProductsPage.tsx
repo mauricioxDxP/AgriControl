@@ -20,6 +20,7 @@ export default function ProductsPage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    genericName: '',
     typeId: '',
     stateId: '',
     baseUnit: 'KG' as BaseUnit,
@@ -61,6 +62,7 @@ export default function ProductsPage() {
   const resetForm = () => {
     setFormData({
       name: '',
+      genericName: '',
       typeId: productTypes[0]?.id || '',
       stateId: productStates[0]?.id || '',
       baseUnit: 'KG',
@@ -79,6 +81,7 @@ export default function ProductsPage() {
       setEditingProduct(product);
       setFormData({
         name: product.name,
+        genericName: (product as any).genericName || '',
         typeId: (product as any).type?.id || product.typeId || '',
         stateId: (product as any).state?.id || product.stateId || '',
         baseUnit: product.baseUnit,
@@ -123,6 +126,7 @@ export default function ProductsPage() {
     
     const data = {
       name: formData.name,
+      genericName: formData.genericName || null,
       typeId: formData.typeId,
       stateId: formData.stateId,
       baseUnit: formData.baseUnit,
@@ -341,6 +345,17 @@ export default function ProductsPage() {
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nombre Genérico</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.genericName}
+                    onChange={e => setFormData({ ...formData, genericName: e.target.value })}
+                    placeholder="Ej: Glifosato, 2,4-D, etc."
                   />
                 </div>
 
