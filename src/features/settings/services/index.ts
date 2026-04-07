@@ -1,4 +1,5 @@
 import { request } from '../../../shared/services/request';
+import { PlantedProductType } from '../../../types';
 
 export const settingsService = {
   // Product Types
@@ -29,5 +30,15 @@ export const settingsService = {
     body: JSON.stringify({ name })
   }),
   
-  deleteContainerType: (id: string) => request<void>(`/settings/container-types/${id}`, { method: 'DELETE' })
+  deleteContainerType: (id: string) => request<void>(`/settings/container-types/${id}`, { method: 'DELETE' }),
+
+  // Planted Product Types (tipos plantados - configuración global para campos)
+  getPlantedProductTypes: () => request<PlantedProductType[]>('/settings/field-product-types'),
+  
+  addPlantedProductType: (productTypeId: string) => request<PlantedProductType>('/settings/field-product-types', {
+    method: 'POST',
+    body: JSON.stringify({ productTypeId })
+  }),
+  
+  deletePlantedProductType: (id: string) => request<void>(`/settings/field-product-types/${id}`, { method: 'DELETE' })
 };

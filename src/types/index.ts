@@ -67,9 +67,21 @@ export interface Field {
   name: string;
   area: number;
   location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  productId?: string | null;
+  product?: Product;
   createdAt: string;
   updatedAt: string;
   synced: boolean;
+}
+
+// Configuración global: tipos de producto "plantados" (filtro para campos)
+export interface PlantedProductType {
+  id: string;
+  productTypeId: string;
+  productType?: ProductTypeModel;
+  createdAt: string;
 }
 
 export interface ApplicationLot {

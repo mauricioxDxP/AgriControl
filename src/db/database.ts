@@ -17,7 +17,7 @@ export class AgroControlDB extends Dexie {
   constructor() {
     super('AgroControlDB');
     
-    this.version(5).stores({
+    this.version(7).stores({
       products: 'id, name, type, synced, updatedAt',
       lots: 'id, productId, synced, updatedAt',
       fields: 'id, name, synced, updatedAt',
@@ -29,6 +29,12 @@ export class AgroControlDB extends Dexie {
       tancadas: 'id, productId, date, synced, updatedAt',
       tancadaFields: 'id, tancadaId, fieldId, synced',
       tanks: 'id, name, synced, updatedAt'
+    }).upgrade(async (tx) => {
+      // Remove productTypeId from fields (moved to global PlantedProductType config)
+      await tx.table('fields').toCollection().modify((field: any) => {
+        delete field.productTypeId;
+        delete field.productType;
+      });
     });
   }
 }

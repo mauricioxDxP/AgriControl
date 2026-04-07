@@ -13,6 +13,7 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import ProductSettingsPage from './pages/ProductSettingsPage';
 import OperationSettingsPage from './pages/OperationSettingsPage';
+import FieldSettingsPage from './pages/FieldSettingsPage';
 
 // Lista de tamaños de fuente
 const fontSizes = [
@@ -52,6 +53,7 @@ function App() {
     { path: '/tancadas', label: 'Tancadas', icon: '🚿', group: 'operaciones' },
     { path: '/applications', label: 'Aplicaciones', icon: '🚁', group: 'operaciones' },
     { path: '/settings/operations', label: 'Config Operaciones', icon: '⚙️', group: 'operaciones' },
+    { path: '/settings/fields', label: 'Config Campos', icon: '🌾', group: 'operaciones' },
     // System
     { path: '/', label: 'Dashboard', icon: '📊', group: 'sistema' },
     { path: '/settings', label: 'Configuración', icon: '⚙️', group: 'sistema' },
@@ -177,6 +179,7 @@ function App() {
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/products" element={<ProductSettingsPage />} />
           <Route path="/settings/operations" element={<OperationSettingsPage />} />
+          <Route path="/settings/fields" element={<FieldSettingsPage />} />
           <Route path="/applications" element={<ApplicationsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

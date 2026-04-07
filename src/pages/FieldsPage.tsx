@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useFields } from '../hooks/useData';
-import { Field } from '../types';
+import { Field, ProductTypeModel, Product } from '../types';
+import MapPicker from '../components/MapPicker';
+import { settingsService, productsService } from '../services';
 
 export default function FieldsPage() {
   const { fields, loading, addField, updateField, deleteField } = useFields();
@@ -9,14 +11,40 @@ export default function FieldsPage() {
   const [formData, setFormData] = useState({
     name: '',
     area: '',
-    location: ''
+    location: '',
+    latitude: null as number | null,
+    longitude: null as number | null,
+    productId: ''
   });
+
+  // Product types plantados (configuración global) y productos
+  const [plantedTypes, setPlantedTypes] = useState<string[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductTypeModel[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    settingsService.getProductTypes().then(setProductTypes).catch(() => {});
+    productsService.getAll().then(setProducts).catch(() => {});
+    // Cargar tipos plantados (configuración global)
+    settingsService.getPlantedProductTypes().then(data => {
+      setPlantedTypes(data.map((d: any) => d.productTypeId));
+    }).catch(() => {});
+  }, []);
+
+  // Filtrar productos según tipos plantados (configuración global)
+  const filteredProducts = useMemo(() => {
+    if (plantedTypes.length === 0) return products; // Sin filtro = mostrar todos
+    return products.filter(p => plantedTypes.includes(p.typeId));
+  }, [products, plantedTypes]);
 
   const resetForm = () => {
     setFormData({
       name: '',
       area: '',
-      location: ''
+      location: '',
+      latitude: null,
+      longitude: null,
+      productId: ''
     });
     setEditingField(null);
   };
@@ -27,7 +55,10 @@ export default function FieldsPage() {
       setFormData({
         name: field.name,
         area: field.area.toString(),
-        location: field.location || ''
+        location: field.location || '',
+        latitude: field.latitude ?? null,
+        longitude: field.longitude ?? null,
+        productId: field.productId || ''
       });
     } else {
       resetForm();
@@ -41,7 +72,10 @@ export default function FieldsPage() {
     const data = {
       name: formData.name,
       area: parseFloat(formData.area),
-      location: formData.location || undefined
+      location: formData.location || undefined,
+      latitude: formData.latitude,
+      longitude: formData.longitude,
+      productId: formData.productId || null
     };
 
     if (editingField) {
@@ -57,6 +91,14 @@ export default function FieldsPage() {
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de eliminar este campo?')) {
       await deleteField(id);
+    }
+  };
+
+  const handleMapChange = (lat: number, lng: number) => {
+    if (isNaN(lat) || isNaN(lng)) {
+      setFormData(prev => ({ ...prev, latitude: null, longitude: null }));
+    } else {
+      setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
     }
   };
 
@@ -91,7 +133,7 @@ export default function FieldsPage() {
       ) : (
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
           gap: '1rem' 
         }}>
           {fields.map(field => (
@@ -122,11 +164,40 @@ export default function FieldsPage() {
                   </div>
                 </div>
                 {field.location && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                     <span style={{ fontSize: '1.25rem' }}>📍</span>
                     <div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Ubicación</div>
                       <div>{field.location}</div>
+                    </div>
+                  </div>
+                )}
+                {field.latitude && field.longitude && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>🗺️</span>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Coordenadas</div>
+                      <div style={{ fontSize: '0.8rem' }}>
+                        {field.latitude.toFixed(4)}, {field.longitude.toFixed(4)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {field.productType && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>📦</span>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Tipo de producto</div>
+                      <span className="badge badge-primary">{field.productType.name}</span>
+                    </div>
+                  </div>
+                )}
+                {field.product && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '1.25rem' }}>🧴</span>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Producto</div>
+                      <div>{field.product.name}</div>
                     </div>
                   </div>
                 )}
@@ -139,7 +210,7 @@ export default function FieldsPage() {
       {/* Modal */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h3 className="modal-title">
                 {editingField ? 'Editar Campo' : 'Nuevo Campo'}
@@ -153,6 +224,7 @@ export default function FieldsPage() {
             </div>
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
+                {/* Nombre */}
                 <div className="form-group">
                   <label className="form-label">Nombre *</label>
                   <input
@@ -165,6 +237,7 @@ export default function FieldsPage() {
                   />
                 </div>
 
+                {/* Área */}
                 <div className="form-group">
                   <label className="form-label">Área (hectáreas) *</label>
                   <input
@@ -179,8 +252,9 @@ export default function FieldsPage() {
                   />
                 </div>
 
+                {/* Ubicación descripción */}
                 <div className="form-group">
-                  <label className="form-label">Ubicación</label>
+                  <label className="form-label">Ubicación (descripción)</label>
                   <input
                     type="text"
                     className="form-input"
@@ -188,6 +262,38 @@ export default function FieldsPage() {
                     onChange={e => setFormData({ ...formData, location: e.target.value })}
                     placeholder="Ej: Ruta 5, Km 12"
                   />
+                </div>
+
+                {/* Mapa + GPS */}
+                <div className="form-group">
+                  <label className="form-label">Ubicación en mapa</label>
+                  <MapPicker
+                    latitude={formData.latitude}
+                    longitude={formData.longitude}
+                    onChange={handleMapChange}
+                    height="250px"
+                  />
+                </div>
+
+                {/* Configuración: Producto específico (filtrado por tipos plantados) */}
+                <div className="form-group">
+                  <label className="form-label">Producto específico (opcional)</label>
+                  <select
+                    className="form-select"
+                    value={formData.productId}
+                    onChange={e => setFormData({ ...formData, productId: e.target.value })}
+                  >
+                    <option value="">— Sin producto específico —</option>
+                    {filteredProducts.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', marginTop: '0.25rem' }}>
+                    {plantedTypes.length > 0
+                      ? `Mostrando ${filteredProducts.length} producto(s) de tipos plantados`
+                      : `Mostrando todos los productos (${filteredProducts.length}). Configurá tipos plantados en Configuración → Campos`
+                    }
+                  </div>
                 </div>
               </div>
               <div className="modal-footer">

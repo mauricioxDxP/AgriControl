@@ -35,6 +35,9 @@ export function useFields() {
       name: data.name || '',
       area: data.area || 0,
       location: data.location,
+      latitude: data.latitude ?? null,
+      longitude: data.longitude ?? null,
+      productId: data.productId ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false
