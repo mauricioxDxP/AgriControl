@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useFields } from '../hooks/useData';
-import { Field, ProductTypeModel, Product } from '../types';
+import { Field, Product } from '../types';
 import MapPicker from '../components/MapPicker';
 import { settingsService, productsService } from '../services';
 
@@ -17,13 +17,11 @@ export default function FieldsPage() {
     productId: ''
   });
 
-  // Product types plantados (configuración global) y productos
+  // Tipos plantados (configuración global) y productos
   const [plantedTypes, setPlantedTypes] = useState<string[]>([]);
-  const [productTypes, setProductTypes] = useState<ProductTypeModel[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    settingsService.getProductTypes().then(setProductTypes).catch(() => {});
     productsService.getAll().then(setProducts).catch(() => {});
     // Cargar tipos plantados (configuración global)
     settingsService.getPlantedProductTypes().then(data => {
@@ -180,15 +178,6 @@ export default function FieldsPage() {
                       <div style={{ fontSize: '0.8rem' }}>
                         {field.latitude.toFixed(4)}, {field.longitude.toFixed(4)}
                       </div>
-                    </div>
-                  </div>
-                )}
-                {field.productType && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '1.25rem' }}>📦</span>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Tipo de producto</div>
-                      <span className="badge badge-primary">{field.productType.name}</span>
                     </div>
                   </div>
                 )}
