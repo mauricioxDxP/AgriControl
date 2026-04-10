@@ -1,5 +1,6 @@
 import { LotLine } from '../../../types';
 import { request } from '../../../shared/services/request';
+import { apiCache } from '../../../shared/services/cache';
 
 export const lotLinesService = {
   getAll: () => request<LotLine[]>('/lotlines'),
@@ -8,27 +9,54 @@ export const lotLinesService = {
   
   getByLot: (lotId: string) => request<LotLine[]>(`/lotlines/lot/${lotId}`),
   
-  create: (data: Partial<LotLine>) => request<LotLine>('/lotlines', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: async (data: Partial<LotLine>) => {
+    const result = await request<LotLine>('/lotlines', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      useCache: false
+    });
+    apiCache.invalidateResource('lotlines');
+    return result;
+  },
   
-  update: (id: string, data: Partial<LotLine>) => request<LotLine>(`/lotlines/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data)
-  }),
+  update: async (id: string, data: Partial<LotLine>) => {
+    const result = await request<LotLine>(`/lotlines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      useCache: false
+    });
+    apiCache.invalidateResource('lotlines');
+    return result;
+  },
   
-  consume: (id: string, quantity: number) => request<LotLine>(`/lotlines/${id}/consume`, {
-    method: 'POST',
-    body: JSON.stringify({ quantity })
-  }),
+  consume: async (id: string, quantity: number) => {
+    const result = await request<LotLine>(`/lotlines/${id}/consume`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity }),
+      useCache: false
+    });
+    apiCache.invalidateResource('lotlines');
+    return result;
+  },
   
-  recharge: (id: string, quantity?: number) => request<LotLine>(`/lotlines/${id}/recharge`, {
-    method: 'POST',
-    body: JSON.stringify({ quantity })
-  }),
+  recharge: async (id: string, quantity?: number) => {
+    const result = await request<LotLine>(`/lotlines/${id}/recharge`, {
+      method: 'POST',
+      body: JSON.stringify({ quantity }),
+      useCache: false
+    });
+    apiCache.invalidateResource('lotlines');
+    return result;
+  },
   
-  delete: (id: string) => request<void>(`/lotlines/${id}`, { method: 'DELETE' })
+  delete: async (id: string) => {
+    const result = await request<void>(`/lotlines/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('lotlines');
+    return result;
+  }
 };
 
 // Alias para compatibilidad hacia atrás

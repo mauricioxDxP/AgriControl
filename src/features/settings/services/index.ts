@@ -1,44 +1,93 @@
 import { request } from '../../../shared/services/request';
+import { apiCache } from '../../../shared/services/cache';
 import { PlantedProductType } from '../../../types';
 
 export const settingsService = {
   // Product Types
   getProductTypes: () => request<any[]>('/settings/product-types'),
   
-  createProductType: (name: string) => request<any>('/settings/product-types', {
-    method: 'POST',
-    body: JSON.stringify({ name })
-  }),
+  createProductType: async (name: string) => {
+    const result = await request<any>('/settings/product-types', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
-  deleteProductType: (id: string) => request<void>(`/settings/product-types/${id}`, { method: 'DELETE' }),
+  deleteProductType: async (id: string) => {
+    const result = await request<void>(`/settings/product-types/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
   // Product States
   getProductStates: () => request<any[]>('/settings/product-states'),
   
-  createProductState: (name: string) => request<any>('/settings/product-states', {
-    method: 'POST',
-    body: JSON.stringify({ name })
-  }),
+  createProductState: async (name: string) => {
+    const result = await request<any>('/settings/product-states', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
-  deleteProductState: (id: string) => request<void>(`/settings/product-states/${id}`, { method: 'DELETE' }),
+  deleteProductState: async (id: string) => {
+    const result = await request<void>(`/settings/product-states/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
   // Container Types
   getContainerTypes: () => request<any[]>('/settings/container-types'),
   
-  createContainerType: (name: string) => request<any>('/settings/container-types', {
-    method: 'POST',
-    body: JSON.stringify({ name })
-  }),
+  createContainerType: async (name: string) => {
+    const result = await request<any>('/settings/container-types', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
-  deleteContainerType: (id: string) => request<void>(`/settings/container-types/${id}`, { method: 'DELETE' }),
-
+  deleteContainerType: async (id: string) => {
+    const result = await request<void>(`/settings/container-types/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
+ 
   // Planted Product Types (tipos plantados - configuración global para campos)
   getPlantedProductTypes: () => request<PlantedProductType[]>('/settings/field-product-types'),
   
-  addPlantedProductType: (productTypeId: string) => request<PlantedProductType>('/settings/field-product-types', {
-    method: 'POST',
-    body: JSON.stringify({ productTypeId })
-  }),
+  addPlantedProductType: async (productTypeId: string) => {
+    const result = await request<PlantedProductType>('/settings/field-product-types', {
+      method: 'POST',
+      body: JSON.stringify({ productTypeId }),
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  },
   
-  deletePlantedProductType: (id: string) => request<void>(`/settings/field-product-types/${id}`, { method: 'DELETE' })
+  deletePlantedProductType: async (id: string) => {
+    const result = await request<void>(`/settings/field-product-types/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('settings');
+    return result;
+  }
 };

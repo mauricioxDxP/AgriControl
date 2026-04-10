@@ -1,5 +1,6 @@
 import { Lot } from '../../../types';
 import { request } from '../../../shared/services/request';
+import { apiCache } from '../../../shared/services/cache';
 
 export const lotsService = {
   getAll: () => request<Lot[]>('/lots'),
@@ -8,15 +9,32 @@ export const lotsService = {
   
   getByProduct: (productId: string) => request<Lot[]>(`/lots/product/${productId}`),
   
-  create: (data: Partial<Lot>) => request<Lot>('/lots', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  }),
+  create: async (data: Partial<Lot>) => {
+    const result = await request<Lot>('/lots', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      useCache: false
+    });
+    apiCache.invalidateResource('lots');
+    return result;
+  },
   
-  update: (id: string, data: Partial<Lot>) => request<Lot>(`/lots/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data)
-  }),
+  update: async (id: string, data: Partial<Lot>) => {
+    const result = await request<Lot>(`/lots/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+      useCache: false
+    });
+    apiCache.invalidateResource('lots');
+    return result;
+  },
   
-  delete: (id: string) => request<void>(`/lots/${id}`, { method: 'DELETE' })
+  delete: async (id: string) => {
+    const result = await request<void>(`/lots/${id}`, {
+      method: 'DELETE',
+      useCache: false
+    });
+    apiCache.invalidateResource('lots');
+    return result;
+  }
 };
