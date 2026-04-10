@@ -366,7 +366,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   const getSelectedProduct = () => products.find(p => p.id === wizardState.selectedProductId);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '100%', margin: '0.5rem', maxHeight: '90vh' }}>
         <div className="modal-header">
           <h3 className="modal-title">{stepTitle[wizardState.step]}</h3>

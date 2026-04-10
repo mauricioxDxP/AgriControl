@@ -693,7 +693,7 @@ export default function TancadasPage() {
 
       {/* Modal de Tancada */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '750px' }}>
             <div className="modal-header">
               <h3 className="modal-title">{editingId ? 'Editar Tancada' : 'Nueva Tancada'}</h3>
@@ -1154,7 +1154,7 @@ export default function TancadasPage() {
 
       {/* Modal de Resumen en Texto */}
       {showResumen && resumenTancada && (
-        <div className="modal-overlay" onClick={() => setShowResumen(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <h3 className="modal-title">Resumen de Tancada</h3>

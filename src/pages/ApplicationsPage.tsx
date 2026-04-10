@@ -505,7 +505,7 @@ export default function ApplicationsPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => { setShowModal(false); setEditingApplication(null); }}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '700px' }}>
             <div className="modal-header">
               <h3 className="modal-title">{editingApplication ? 'Editar Aplicación' : 'Nueva Aplicación'}</h3>

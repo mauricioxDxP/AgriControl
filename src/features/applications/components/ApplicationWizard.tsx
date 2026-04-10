@@ -364,7 +364,7 @@ export default function ApplicationWizard({ isOpen, onClose, onSubmit, products,
   const getFieldName = (id: string) => fields.find(f => f.id === id)?.name || '-';
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
       <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px', margin: '0.5rem' }}>
         <div className="modal-header">
           <h3 className="modal-title">{editApplication ? 'Editar Aplicación' : 'Nueva Aplicación'}</h3>

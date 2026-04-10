@@ -354,7 +354,7 @@ export default function LotsPage() {
 
       {/* Create Modal */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Nuevo Lote</h3>
@@ -605,7 +605,7 @@ export default function LotsPage() {
 
       {/* Edit Modal */}
       {editModal && editingLot && (
-        <div className="modal-overlay" onClick={() => setEditModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Editar Lote</h3>

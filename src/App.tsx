@@ -1,19 +1,37 @@
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useOnlineStatus, useSync } from './hooks/useData';
-import { useState, useEffect } from 'react';
-import ProductsPage from './pages/ProductsPage';
-import LotsPage from './pages/LotsPage';
-import FieldsPage from './pages/FieldsPage';
-import ApplicationsPage from './pages/ApplicationsPage';
-import ContainersPage from './pages/ContainersPage';
-import StockPage from './pages/StockPage';
-import TanksPage from './pages/TanksPage';
-import TancadasPage from './pages/TancadasPage';
-import DashboardPage from './pages/DashboardPage';
-import SettingsPage from './pages/SettingsPage';
-import ProductSettingsPage from './pages/ProductSettingsPage';
-import OperationSettingsPage from './pages/OperationSettingsPage';
-import FieldSettingsPage from './pages/FieldSettingsPage';
+import { useState, useEffect, lazy, Suspense } from 'react';
+
+// Lazy loading de páginas - se cargan solo cuando se necesitan
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const ProductsPage = lazy(() => import('./pages/ProductsPage'));
+const LotsPage = lazy(() => import('./pages/LotsPage'));
+const FieldsPage = lazy(() => import('./pages/FieldsPage'));
+const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'));
+const ContainersPage = lazy(() => import('./pages/ContainersPage'));
+const StockPage = lazy(() => import('./pages/StockPage'));
+const TanksPage = lazy(() => import('./pages/TanksPage'));
+const TancadasPage = lazy(() => import('./pages/TancadasPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ProductSettingsPage = lazy(() => import('./pages/ProductSettingsPage'));
+const OperationSettingsPage = lazy(() => import('./pages/OperationSettingsPage'));
+const FieldSettingsPage = lazy(() => import('./pages/FieldSettingsPage'));
+const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+
+// Componente de carga para lazy loading
+function PageLoader() {
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      height: '100vh',
+      color: 'var(--text-color)'
+    }}>
+      <span>Cargando...</span>
+    </div>
+  );
+}
 
 // Lista de tamaños de fuente
 const fontSizes = [
@@ -46,6 +64,7 @@ function App() {
     { path: '/lots', label: 'Lotes', icon: '🔖', group: 'inventario' },
     { path: '/containers', label: 'Contenedores', icon: '🫙', group: 'inventario' },
     { path: '/stock', label: 'Stock', icon: '📈', group: 'inventario' },
+    { path: '/reports', label: 'Reportes', icon: '📊', group: 'inventario' },
     { path: '/settings/products', label: 'Config Productos', icon: '⚙️', group: 'inventario' },
     // Operations
     { path: '/fields', label: 'Campos', icon: '🌾', group: 'operaciones' },
@@ -167,22 +186,25 @@ function App() {
       )}
 
       <main className="app-main">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/products" element={<ProductsPage />} />
-          <Route path="/lots" element={<LotsPage />} />
-          <Route path="/containers" element={<ContainersPage />} />
-          <Route path="/stock" element={<StockPage />} />
-          <Route path="/fields" element={<FieldsPage />} />
-          <Route path="/tanks" element={<TanksPage />} />
-          <Route path="/tancadas" element={<TancadasPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/products" element={<ProductSettingsPage />} />
-          <Route path="/settings/operations" element={<OperationSettingsPage />} />
-          <Route path="/settings/fields" element={<FieldSettingsPage />} />
-          <Route path="/applications" element={<ApplicationsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/products" element={<ProductsPage />} />
+            <Route path="/lots" element={<LotsPage />} />
+            <Route path="/containers" element={<ContainersPage />} />
+            <Route path="/stock" element={<StockPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/fields" element={<FieldsPage />} />
+            <Route path="/tanks" element={<TanksPage />} />
+            <Route path="/tancadas" element={<TancadasPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/settings/products" element={<ProductSettingsPage />} />
+            <Route path="/settings/operations" element={<OperationSettingsPage />} />
+            <Route path="/settings/fields" element={<FieldSettingsPage />} />
+            <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <footer className="app-footer">

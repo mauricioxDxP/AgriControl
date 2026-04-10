@@ -309,7 +309,7 @@ export default function ContainersPage() {
 
       {/* Modal de Crear/Editar */}
       {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
@@ -428,7 +428,7 @@ export default function ContainersPage() {
 
       {/* Modal de Consumo */}
       {showConsumeModal && selectedLot && (
-        <div className="modal-overlay" onClick={() => setShowConsumeModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Consumir del Lote</h3>
@@ -483,7 +483,7 @@ export default function ContainersPage() {
 
       {/* Modal de Recarga */}
       {showRechargeModal && selectedLot && (
-        <div className="modal-overlay" onClick={() => setShowRechargeModal(false)}>
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">Recargar Lote</h3>
