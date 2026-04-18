@@ -315,6 +315,15 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   };
 
   const submitWizardTancada = async () => {
+    // Validar que cada producto tenga lote asignado
+    const productsWithoutLot = wizardState.products.filter(p => !p.lots || p.lots.length === 0 || p.lots.every(l => l.quantityUsed <= 0));
+    if (productsWithoutLot.length > 0) {
+      alert(`⚠️ Los siguientes productos no tienen lote asignado:\n\n${productsWithoutLot.map(p => {
+        const product = availableProducts.find(prod => prod.id === p.productId);
+        return `- ${product?.name || p.productId}`;
+      }).join('\n')}\n\nSin lote, no se descontará del stock. ¿Continuar igual?`);
+    }
+    
     const tancadaData = {
       date: new Date(wizardState.date).toISOString(),
       tankCapacity: parseFloat(wizardState.tankCapacity),

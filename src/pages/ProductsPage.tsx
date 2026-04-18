@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useProducts } from '../hooks/useData';
 import { Product, BaseUnit, DoseType, DoseUnit } from '../types';
 import { settingsService } from '../services';
+import CameraCapture from '../components/CameraCapture';
 
 interface SettingItem {
   id: string;
@@ -12,6 +13,8 @@ export default function ProductsPage() {
   const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [isCameraMinimized, setIsCameraMinimized] = useState(false);
   
   // Settings data
   const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
@@ -152,6 +155,8 @@ export default function ProductsPage() {
     }
 
     setShowModal(false);
+    setShowCamera(false);
+    setIsCameraMinimized(false);
     resetForm();
   };
 
@@ -322,7 +327,12 @@ export default function ProductsPage() {
 
       {/* Modal de Producto */}
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={(e) => {
+          e.stopPropagation();
+          setShowModal(false);
+          setShowCamera(false);
+          setIsCameraMinimized(false);
+        }}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
@@ -330,7 +340,11 @@ export default function ProductsPage() {
               </h3>
               <button 
                 className="btn btn-icon btn-secondary"
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  setShowModal(false);
+                  setShowCamera(false);
+                  setIsCameraMinimized(false);
+                }}
               >
                 ✕
               </button>
@@ -357,6 +371,28 @@ export default function ProductsPage() {
                     onChange={e => setFormData({ ...formData, genericName: e.target.value })}
                     placeholder="Ej: Glifosato, 2,4-D, etc."
                   />
+                </div>
+
+                <div className="form-group">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      if (showCamera && !isCameraMinimized) {
+                        // Si está abierto y no minimizado, minimizar
+                        setIsCameraMinimized(true);
+                      } else if (showCamera && isCameraMinimized) {
+                        // Si está minimizado, restaurar
+                        setIsCameraMinimized(false);
+                      } else {
+                        // Si está cerrado, abrir
+                        setShowCamera(true);
+                      }
+                    }}
+                    style={{ width: '100%' }}
+                  >
+                    {showCamera && isCameraMinimized ? '📷 Restaurar cámara' : '📷 Escanear'}
+                  </button>
                 </div>
 
                 <div className="form-row">
@@ -547,7 +583,11 @@ export default function ProductsPage() {
                 <button 
                   type="button" 
                   className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setShowCamera(false);
+                    setIsCameraMinimized(false);
+                  }}
                 >
                   Cancelar
                 </button>
@@ -558,6 +598,26 @@ export default function ProductsPage() {
             </form>
           </div>
         </div>
+      )}
+
+      {/* Cámara OCR - modo modal (abierto o minimizado) */}
+      {(showCamera || isCameraMinimized) && (
+        <CameraCapture
+          isOpen={showCamera || isCameraMinimized}
+          mode="modal"
+          onClose={() => {
+            setShowCamera(false);
+            setIsCameraMinimized(false);
+          }}
+          isMinimized={isCameraMinimized}
+          onMinimizeChange={(minimized) => {
+            setIsCameraMinimized(minimized);
+            if (!minimized) {
+              // Si se restaura desde el modal, asegurar showCamera=true
+              setShowCamera(true);
+            }
+          }}
+        />
       )}
     </div>
   );

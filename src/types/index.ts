@@ -194,21 +194,6 @@ export interface CreateApplicationInput {
   lots?: { lotId: string; quantityUsed: number }[];
 }
 
-// Línea de lote (agrupación de contenedores por estado)
-export interface LotLine {
-  id: string;
-  lotId: string;
-  productId: string;
-  type: 'FULL' | 'PARTIAL' | 'EMPTY';
-  units: number;
-  remainingVolume?: number;
-  capacity: number;
-  unit: BaseUnit;
-  createdAt: string;
-  updatedAt: string;
-  synced: boolean;
-}
-
 // Contenedor (bidón, saco, bolsa, tambor)
 // @deprecated - Usar LotLine en su lugar
 export interface Container {

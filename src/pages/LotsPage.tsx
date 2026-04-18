@@ -1,11 +1,10 @@
 import { useState } from 'react';
-import { useLots, useProducts, useLotLines } from '../hooks/useData';
+import { useLots, useProducts } from '../hooks/useData';
 import { ContainerType, Lot } from '../types';
 
 export default function LotsPage() {
   const { lots, loading, addLot, updateLot, deleteLot } = useLots();
   const { products } = useProducts();
-  const { addLotLine } = useLotLines();
   const [showModal, setShowModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingLot, setEditingLot] = useState<Lot | null>(null);
@@ -16,12 +15,8 @@ export default function LotsPage() {
     supplier: '',
     lotCode: '',
     initialStock: '',
-    // Container info
     containerType: 'BIDON' as ContainerType,
-    containerCapacity: '',
-    fullContainers: '0',
-    partialContainers: '0',
-    partialQuantity: ''
+    containerCapacity: ''
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -40,10 +35,7 @@ export default function LotsPage() {
       lotCode: '',
       initialStock: '',
       containerType: 'BIDON',
-      containerCapacity: '',
-      fullContainers: '0',
-      partialContainers: '0',
-      partialQuantity: ''
+      containerCapacity: ''
     });
   };
 
@@ -84,8 +76,7 @@ export default function LotsPage() {
     const stock = parseFloat(formData.initialStock);
     const containerCapacity = parseFloat(formData.containerCapacity);
     
-    // Create the lot first
-    const lot = await addLot({
+    await addLot({
       productId: formData.productId,
       entryDate: new Date(formData.entryDate).toISOString(),
       expiryDate: formData.expiryDate ? new Date(formData.expiryDate).toISOString() : undefined,
@@ -95,50 +86,6 @@ export default function LotsPage() {
       containerType: formData.containerType as any,
       containerCapacity: containerCapacity > 0 ? containerCapacity : undefined
     });
-
-    // If lot was created successfully and containers are specified, create containers
-    if (lot && containerCapacity > 0) {
-      const product = products.find(p => p.id === formData.productId);
-      const unit = product?.baseUnit || 'L';
-      
-      // Calculate number of full containers
-      const numContainers = Math.floor(stock / containerCapacity);
-      const remainingStock = stock % containerCapacity;
-      
-      // Create full containers
-      if (numContainers > 0) {
-        await addLotLine({
-          lotId: lot.id,
-          productId: lot.productId,
-          type: 'FULL',
-          units: numContainers,
-          capacity: containerCapacity,
-          unit: unit as any,
-          remainingVolume: containerCapacity
-        });
-      }
-      
-      // Create partially filled container if there's remaining stock
-      if (remainingStock > 0) {
-        await addLotLine({
-          lotId: lot.id,
-          productId: lot.productId,
-          type: 'PARTIAL',
-          units: 1,
-          capacity: containerCapacity,
-          unit: unit as any,
-          remainingVolume: remainingStock
-        });
-      }
-    }
-    // await addLotLine({
-    //       lotId: lot.id,
-    //       productId: lot.productId,
-    //       type: 'EMPTY',
-    //       units: 0,
-    //       capacity: containerCapacity,
-    //       remainingVolume: 0
-    //     });
 
     setShowModal(false);
     resetForm();
@@ -454,20 +401,7 @@ export default function LotsPage() {
                   />
                 </div>
 
-                {/* Container creation section */}
-                <div style={{ 
-                  background: 'var(--gray-50)', 
-                  padding: '1rem', 
-                  borderRadius: 'var(--radius)',
-                  marginTop: '1rem'
-                }}>
-                  <h4 style={{ marginBottom: '0.75rem', color: 'var(--primary)' }}>
-                    📦 Crear Contenedores
-                  </h4>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--gray-600)', marginBottom: '0.75rem' }}>
-                    Especificá los contenedores físicos que componen este lote
-                  </p>
-                  
+                <div className="form-row">
                   <div className="form-group">
                     <label className="form-label">Tipo de Contenedor</label>
                     <select
@@ -491,101 +425,12 @@ export default function LotsPage() {
                       min="0"
                       className="form-input"
                       value={formData.containerCapacity}
-                      onChange={e => {
-                        setFormData({ ...formData, containerCapacity: e.target.value });
-                        // Auto-calculate full containers based on stock
-                        if (formData.initialStock) {
-                          const stock = parseFloat(formData.initialStock) || 0;
-                          const capacity = parseFloat(e.target.value) || 0;
-                          if (capacity > 0) {
-                            const fullCount = Math.floor(stock / capacity);
-                            setFormData(prev => ({ ...prev, fullContainers: fullCount.toString() }));
-                          }
-                        }
-                      }}
+                      onChange={e => setFormData({ ...formData, containerCapacity: e.target.value })}
                       placeholder="Capacidad de cada contenedor"
                     />
                   </div>
-
-                  {/* Full containers */}
-                  <div className="form-group">
-                    <label className="form-label" style={{ color: 'var(--success)' }}>
-                      ✅ Contenedores LLENOS (sin abrir)
-                    </label>
-                    <input
-                      type="number"
-                      step="1"
-                      min="0"
-                      className="form-input"
-                      value={formData.fullContainers}
-                      onChange={e => setFormData({ ...formData, fullContainers: e.target.value })}
-                      placeholder="Cantidad de contenedores lleno"
-                    />
-                    {formData.fullContainers && formData.containerCapacity && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)', marginTop: '0.25rem' }}>
-                        {formData.fullContainers} {formData.containerType}(s) de {formData.containerCapacity} {selectedProduct?.baseUnit} cada uno
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Partial containers */}
-                  <div className="form-group">
-                    <label className="form-label" style={{ color: 'var(--warning)' }}>
-                      ⚠️ Contenedores PARCIALMENTE CONSUMIDOS
-                    </label>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <div style={{ flex: 1 }}>
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          className="form-input"
-                          value={formData.partialContainers}
-                          onChange={e => setFormData({ ...formData, partialContainers: e.target.value })}
-                          placeholder="Cantidad"
-                        />
-                      </div>
-                      <div style={{ flex: 2 }}>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          className="form-input"
-                          value={formData.partialQuantity}
-                          onChange={e => setFormData({ ...formData, partialQuantity: e.target.value })}
-                          placeholder={`Restante por contenedor (${selectedProduct?.baseUnit})`}
-                        />
-                      </div>
-                    </div>
-                    {formData.partialContainers && formData.partialQuantity && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)', marginTop: '0.25rem' }}>
-                        {formData.partialContainers} {formData.containerType}(s) con {formData.partialQuantity} {selectedProduct?.baseUnit} restantes cada uno
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Summary */}
-                  {((parseInt(formData.fullContainers) > 0) || (parseInt(formData.partialContainers) > 0)) && formData.containerCapacity && (
-                    <div style={{ 
-                      background: 'var(--white)', 
-                      padding: '0.75rem', 
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid var(--primary)',
-                      fontSize: '0.8rem'
-                    }}>
-                      <strong>Resumen:</strong>
-                      <ul style={{ margin: '0.5rem 0 0 1rem', padding: 0 }}>
-                        {parseInt(formData.fullContainers) > 0 && (
-                          <li>✅ {formData.fullContainers} {formData.containerType}(s) lleno(s): {parseInt(formData.fullContainers) * parseFloat(formData.containerCapacity)} {selectedProduct?.baseUnit}</li>
-                        )}
-                        {parseInt(formData.partialContainers) > 0 && formData.partialQuantity && (
-                          <li>⚠️ {formData.partialContainers} {formData.containerType}(s) parcialmente: {parseInt(formData.partialContainers) * parseFloat(formData.partialQuantity)} {selectedProduct?.baseUnit}</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
                 </div>
-              </div>
+                </div>
               <div className="modal-footer">
                 <button 
                   type="button" 

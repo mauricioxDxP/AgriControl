@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { dbHelpers } from '../../db/database';
-import { productsService, lotsService, fieldsService, applicationsService, containersService, movementsService, tancadasService, tanksService, syncService } from '../../services';
-import { Product, Lot, Field, Application, CreateApplicationInput, Container, Movement, Tancada, Tank, CreateTancadaInput } from '../../types';
+import { productsService, lotsService, fieldsService, applicationsService, movementsService, tancadasService, tanksService, syncService } from '../../services';
+import { Product, Lot, Field, Application, CreateApplicationInput, Movement, Tancada, Tank, CreateTancadaInput } from '../../types';
 
 // Hook para detectar estado online/offline
 export function useOnlineStatus() {
@@ -561,113 +561,6 @@ export function useDosageCalculation() {
   };
 
   return { calculate };
-}
-
-// Hook para contenedores
-export function useContainers(lotId?: string) {
-  const [containers, setContainers] = useState<Container[]>([]);
-  const [loading, setLoading] = useState(true);
-  const isOnline = useOnlineStatus();
-
-  const loadContainers = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (isOnline) {
-        const data = lotId 
-          ? await containersService.getByLot(lotId)
-          : await containersService.getAll();
-        setContainers(data as unknown as Container[]);
-      } else {
-        const localData = lotId
-          ? await dbHelpers.getContainersByLot(lotId)
-          : await dbHelpers.getAllContainers();
-        setContainers(localData);
-      }
-    } catch {
-      const localData = lotId
-        ? await dbHelpers.getContainersByLot(lotId)
-        : await dbHelpers.getAllContainers();
-      setContainers(localData);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOnline, lotId]);
-
-  useEffect(() => {
-    loadContainers();
-  }, [loadContainers]);
-
-  const addContainer = async (data: Partial<Container>) => {
-    const newContainer: Container = {
-      id: uuidv4(),
-      lotId: data.lotId || '',
-      typeId: data.typeId || '',
-      capacity: data.capacity || 0,
-      unit: data.unit || 'L',
-      status: data.status || 'DISPONIBLE',
-      name: data.name,
-      notes: data.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      synced: false
-    };
-
-    if (isOnline) {
-      try {
-        const created = await containersService.create(newContainer as any);
-        await dbHelpers.addContainer(created as any);
-        setContainers(prev => [created as unknown as Container, ...prev]);
-        return created;
-      } catch {
-        await dbHelpers.addContainer(newContainer);
-        setContainers(prev => [newContainer, ...prev]);
-        return newContainer;
-      }
-    } else {
-      await dbHelpers.addContainer(newContainer);
-      setContainers(prev => [newContainer, ...prev]);
-      return newContainer;
-    }
-  };
-
-  const updateContainer = async (id: string, data: Partial<Container>) => {
-    const updated = { ...data, updatedAt: new Date().toISOString(), synced: false };
-    
-    if (isOnline) {
-      try {
-        const result = await containersService.update(id, updated as any);
-        await dbHelpers.updateContainer(id, result as any);
-        setContainers(prev => prev.map(c => c.id === id ? result as any : c));
-        return result;
-      } catch {
-        await dbHelpers.updateContainer(id, updated as any);
-        setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } as any : c));
-        return { ...containers.find(c => c.id === id), ...updated };
-      }
-    } else {
-      await dbHelpers.updateContainer(id, updated as any);
-      setContainers(prev => prev.map(c => c.id === id ? { ...c, ...updated } as any : c));
-      return { ...containers.find(c => c.id === id), ...updated };
-    }
-  };
-
-  const consumeContainer = async (id: string, quantity: number) => {
-    // Consume is handled by the API - just refresh the list
-    await containersService.consume(id, quantity);
-    await loadContainers();
-  };
-
-  const deleteContainer = async (id: string) => {
-    if (isOnline) {
-      try {
-        await containersService.delete(id);
-      } catch {}
-    }
-    await dbHelpers.deleteContainer(id);
-    setContainers(prev => prev.filter(c => c.id !== id));
-  };
-
-  return { containers: containers as unknown as Container[], loading, addContainer, updateContainer, consumeContainer, deleteContainer, refresh: loadContainers };
 }
 
 // Hook para movimientos

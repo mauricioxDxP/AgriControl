@@ -4,7 +4,6 @@ export { lotsService } from '../features/lots/services';
 export { fieldsService } from '../features/fields/services';
 export { applicationsService } from '../features/applications/services';
 export { movementsService } from '../features/movements/services';
-export { lotLinesService, containersService } from '../features/containers/services';
 export { tancadasService } from '../features/tancadas/services';
 export { tanksService } from '../features/tanks/services';
 export { syncService } from '../features/sync/services';

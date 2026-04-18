@@ -7,13 +7,9 @@ export { useProducts } from '../features/products/hooks';
 export { useLots } from '../features/lots/hooks';
 export { useFields } from '../features/fields/hooks';
 export { useApplications } from '../features/applications/hooks';
-export { useLotLines } from '../features/containers/hooks'; // useContainers ahora usa LotLine
 export { useMovements } from '../features/movements/hooks';
 export { useTancadas } from '../features/tancadas/hooks';
 export { useTanks } from '../features/tanks/hooks';
-
-// Compatibilidad hacia atrás - alias
-export { useLotLines as useContainers } from '../features/containers/hooks';
 
 // useOnlineStatus - helper simple para estado de conexión
 export function useOnlineStatus() {

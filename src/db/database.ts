@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Product, Lot, Field, Application, Movement, ApplicationLot, Container, Tancada, TancadaField, Tank, LotLine } from '../types';
+import { Product, Lot, Field, Application, Movement, ApplicationLot, Container, Tancada, TancadaField, Tank } from '../types';
 
 export class AgroControlDB extends Dexie {
   products!: Table<Product>;
@@ -9,7 +9,6 @@ export class AgroControlDB extends Dexie {
   movements!: Table<Movement>;
   applicationLots!: Table<ApplicationLot>;
   containers!: Table<Container>;
-  lotLines!: Table<LotLine>;
   tancadas!: Table<Tancada>;
   tancadaFields!: Table<TancadaField>;
   tanks!: Table<Tank>;
@@ -17,7 +16,7 @@ export class AgroControlDB extends Dexie {
   constructor() {
     super('AgroControlDB');
     
-    this.version(7).stores({
+    this.version(8).stores({
       products: 'id, name, type, synced, updatedAt',
       lots: 'id, productId, synced, updatedAt',
       fields: 'id, name, synced, updatedAt',
@@ -25,16 +24,9 @@ export class AgroControlDB extends Dexie {
       movements: 'id, productId, lotId, type, synced, updatedAt',
       applicationLots: 'id, applicationId, lotId, synced',
       containers: 'id, lotId, type, status, synced, updatedAt',
-      lotLines: 'id, lotId, productId, type, synced, updatedAt',
       tancadas: 'id, productId, date, synced, updatedAt',
       tancadaFields: 'id, tancadaId, fieldId, synced',
       tanks: 'id, name, synced, updatedAt'
-    }).upgrade(async (tx) => {
-      // Remove productTypeId from fields (moved to global PlantedProductType config)
-      await tx.table('fields').toCollection().modify((field: any) => {
-        delete field.productTypeId;
-        delete field.productType;
-      });
     });
   }
 }
@@ -140,6 +132,10 @@ export const dbHelpers = {
     return await db.movements.where('productId').equals(productId).toArray();
   },
   
+  async getMovementsByLot(lotId: string): Promise<Movement[]> {
+    return await db.movements.where('lotId').equals(lotId).toArray();
+  },
+  
   async addMovement(movement: Movement): Promise<string> {
     return await db.movements.put(movement);
   },
@@ -178,35 +174,9 @@ export const dbHelpers = {
     await db.containers.delete(id);
   },
 
-  // Líneas de lote
-  async getAllLotLines(): Promise<LotLine[]> {
-    return await db.lotLines.toArray();
-  },
-
-  async getLotLinesByLot(lotId: string): Promise<LotLine[]> {
-    return await db.lotLines.where('lotId').equals(lotId).toArray();
-  },
-
-  async addLotLine(lotLine: LotLine): Promise<string> {
-    // Verificar que tiene id válido
-    if (!lotLine.id) {
-      console.error('LotLine sin id:', lotLine);
-      throw new Error('LotLine debe tener un id');
-    }
-    return await db.lotLines.put(lotLine);
-  },
-
-  async updateLotLine(id: string, changes: Partial<LotLine>): Promise<number> {
-    return await db.lotLines.update(id, { ...changes, updatedAt: new Date().toISOString() });
-  },
-
-  async deleteLotLine(id: string): Promise<void> {
-    await db.lotLines.delete(id);
-  },
-
   // Utilidades
   async getUnsyncedData() {
-    const [products, lots, fields, applications, movements, applicationLots, containers, lotLines, tancadas, tancadaFields] = await Promise.all([
+    const [products, lots, fields, applications, movements, applicationLots, containers, tancadas, tancadaFields] = await Promise.all([
       db.products.where('synced').equals(0).toArray(),
       db.lots.where('synced').equals(0).toArray(),
       db.fields.where('synced').equals(0).toArray(),
@@ -214,12 +184,11 @@ export const dbHelpers = {
       db.movements.where('synced').equals(0).toArray(),
       db.applicationLots.where('synced').equals(0).toArray(),
       db.containers.where('synced').equals(0).toArray(),
-      db.lotLines.where('synced').equals(0).toArray(),
       db.tancadas.where('synced').equals(0).toArray(),
       db.tancadaFields.where('synced').equals(0).toArray()
     ]);
     
-    return { products, lots, fields, applications, movements, applicationLots, containers, lotLines, tancadas, tancadaFields };
+    return { products, lots, fields, applications, movements, applicationLots, containers, tancadas, tancadaFields };
   },
 
   async clearAllData() {
@@ -231,7 +200,6 @@ export const dbHelpers = {
       db.movements.clear(),
       db.applicationLots.clear(),
       db.containers.clear(),
-      db.lotLines.clear(),
       db.tancadas.clear(),
       db.tancadaFields.clear()
     ]);

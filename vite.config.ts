@@ -76,10 +76,15 @@ export default defineConfig({
     host: true, // Escucha en todas las interfaces de red
     port: 3000,
     allowedHosts: ['desktop-mauricio'],
+    https: {
+      key: './key.pem',
+      cert: './cert.pem'
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
+        target: 'https://localhost:3001',
+        changeOrigin: true,
+        secure: true
       }
     }
   }
