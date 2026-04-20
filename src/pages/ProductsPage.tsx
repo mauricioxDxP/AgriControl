@@ -40,6 +40,17 @@ export default function ProductsPage() {
 
   // Filtro de tipos de producto (multiselección)
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  
+  // Buscador
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFields, setSearchFields] = useState<string[]>(['name', 'genericName', 'type', 'state']);
+  
+  const availableSearchFields = [
+    { value: 'name', label: 'Nombre' },
+    { value: 'genericName', label: 'Nombre Genérico' },
+    { value: 'type', label: 'Tipo' },
+    { value: 'state', label: 'Estado' },
+  ];
 
   // Helper para nombre de tipo
   const getTypeName = (product: Product) => {
@@ -97,11 +108,38 @@ export default function ProductsPage() {
     });
   };
 
-  // Filtrar productos por tipos seleccionados
+  // Filtrar productos por tipos seleccionados y búsqueda
   const filteredProducts = useMemo(() => {
-    if (filterTypes.length === 0) return products;
-    return products.filter(product => filterTypes.includes(getTypeName(product)));
-  }, [products, filterTypes]);
+    let result = products;
+    
+    // Apply type filter
+    if (filterTypes.length > 0) {
+      result = result.filter(product => filterTypes.includes(getTypeName(product)));
+    }
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(product => {
+        return searchFields.some(field => {
+          switch (field) {
+            case 'name':
+              return product.name?.toLowerCase().includes(query);
+            case 'genericName':
+              return (product as any).genericName?.toLowerCase().includes(query);
+            case 'type':
+              return getTypeName(product).toLowerCase().includes(query);
+            case 'state':
+              return getStateName(product).toLowerCase().includes(query);
+            default:
+              return false;
+          }
+        });
+      });
+    }
+    
+    return result;
+  }, [products, filterTypes, searchQuery, searchFields]);
 
   // Agrupar productos filtrados: tipo → nombre genérico
   const groupedProducts = useMemo(() => {
@@ -290,6 +328,22 @@ export default function ProductsPage() {
         </button>
       </div>
 
+      {/* Buscador */}
+      <div className="search-bar mb-2">
+        <input
+          type="text"
+          className="form-input"
+          placeholder="Buscar en todos los campos..."
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        {searchQuery && (
+          <button className="btn btn-secondary btn-sm" onClick={() => setSearchQuery('')}>
+            ✕
+          </button>
+        )}
+      </div>
+
       {/* Filtro de tipos (multiselección) */}
       <div className="filter-chips mb-2">
         {groupedProducts.sortedTypes.map(typeName => {
@@ -323,9 +377,9 @@ export default function ProductsPage() {
       {filteredProducts.length === 0 ? (
         <div className="card">
           <div className="empty-state">
-            <div style={{ fontSize: '3rem' }}>📦</div>
-            <h3>{filterTypes.length > 0 ? `No hay productos de tipo ${filterTypes.join(', ')}` : 'No hay productos'}</h3>
-            <p>{filterTypes.length > 0 ? 'Probá otros tipos o limpiá el filtro' : 'Registrá tu primer producto para comenzar'}</p>
+            <div style={{ fontSize: '3rem' }}>🔍</div>
+            <h3>{searchQuery ? 'No se encontraron productos' : (filterTypes.length > 0 ? `No hay productos de tipo ${filterTypes.join(', ')}` : 'No hay productos')}</h3>
+            <p>{searchQuery ? `No hay productos que contengan "${searchQuery}"` : (filterTypes.length > 0 ? 'Probá otros tipos o limpiá el filtro' : 'Registrá tu primer producto para comenzar')}</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
               + Nuevo
             </button>
