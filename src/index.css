@@ -855,9 +855,45 @@ body {
 @media (min-width: 801px) {
   .mobile-cards {
     display: none;
-  }
+}
 }
 
+/* Chips de filtro - siempre visible */
+button.chip {
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--gray-300);
+  border-radius: 20px;
+  background: var(--white);
+  color: var(--gray-700);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+button.chip:hover {
+  border-color: var(--primary);
+  background: var(--gray-50);
+}
+
+button.chip.chip-active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+button.chip.chip-active:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* filter-chips container */
+div.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Mobile styles */
 @media (max-width: 800px) {
   .mobile-cards {
     display: flex;
@@ -878,7 +914,7 @@ body {
   
   .card-mobile-header {
     background: var(--primary);
-    color: white;
+    color: var(--white);
     padding: 0.5rem 0.75rem;
     display: flex;
     justify-content: space-between;
@@ -901,12 +937,12 @@ body {
   
   .card-mobile-badge.badge-primary {
     background: var(--primary);
-    color: white;
+    color: var(--white);
   }
   
   .card-mobile-badge.badge-secondary {
     background: var(--secondary);
-    color: white;
+    color: var(--white);
   }
   
   .card-mobile-content {
@@ -1007,7 +1043,7 @@ body {
   /* Encabezados de sección en vista móvil */
   .section-header {
     background: var(--primary);
-    color: white;
+    color: var(--white);
     padding: 0.75rem 1rem;
     font-weight: 600;
     text-align: center;
@@ -1024,6 +1060,201 @@ body {
     font-size: 0.9rem;
     border-left: 3px solid var(--gray-400);
     margin: 1rem 0 0.25rem 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  /* Barra de filtros */
+  .filter-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+  
+  /* Chips de filtro */
+button.chip {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 20px;
+    background: var(--white);
+    color: var(--gray-700);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  
+  button.chip:hover {
+    border-color: var(--primary);
+    background: var(--gray-50);
+  }
+
+  button.chip.chip-active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: var(--white);
+  }
+  
+  button.chip.chip-active:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+  }
+
+  /* filter-chips container */
+  div.filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  
+  /* Dropdown de lotes en productos */
+  .lots-dropdown {
+    border-top: 1px solid var(--gray-200);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+  }
+  
+  .lots-dropdown-toggle {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+    color: var(--gray-800);
+  }
+  
+  .lots-dropdown-toggle:hover {
+    background: var(--gray-100);
+    color: var(--primary);
+  }
+
+  .lots-dropdown-toggle:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  
+  .lots-dropdown-content {
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-top: none;
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  }
+  
+  .lot-item {
+    padding: 0.5rem;
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+  }
+  
+  .lot-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .lot-item-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+  }
+  
+  .lot-code {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  
+  .lot-capacity {
+    font-weight: 400;
+    color: var(--gray-600);
+    font-size: 0.8rem;
+  }
+  
+  /* Desktop lot expanded row */
+  .lot-expanded-row {
+    background: var(--gray-50);
+  }
+  
+  .lot-expanded-row td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--gray-200);
+  }
+  
+  .lot-expanded-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .lot-expanded-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.25rem;
+  }
+  
+  .lot-expanded-header .lot-code {
+    font-size: 1rem;
+  }
+  
+  .lot-stock-badge {
+    background: var(--primary);
+    color: var(--white);
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  
+  .lot-expanded-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-top: 0.25rem;
+  }
+
+  .lot-stock-badge {
+    margin-left: auto;
+  }
+  
+  .lot-detail {
+    font-size: 0.85rem;
+    color: var(--gray-700);
+    background: var(--gray-100);
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+  }
+  
+  .lot-stock {
+    font-weight: 500;
+    color: var(--gray-800);
+  }
+  
+  .lot-expiry {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--gray-600);
+    margin-bottom: 0.25rem;
+  }
+  
+  .lot-containers {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--gray-700);
+    background: var(--gray-100);
+    padding: 0.25rem;
+    background: var(--gray-100);
+    border-radius: var(--radius-sm);
+    margin-top: 0.25rem;
   }
   
   /* Ocultar tabla en móvil */

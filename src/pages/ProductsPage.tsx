@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useProducts } from '../hooks/useData';
-import { Product, BaseUnit, DoseType, DoseUnit } from '../types';
+import { useProducts, useLots, useMovements } from '../hooks/useData';
+import { Product, BaseUnit, DoseType, DoseUnit, Lot } from '../types';
 import { settingsService } from '../services';
 import CameraCapture from '../components/CameraCapture';
 
@@ -11,6 +11,9 @@ interface SettingItem {
 
 export default function ProductsPage() {
   const { products, loading, addProduct, updateProduct, deleteProduct } = useProducts();
+  const { lots } = useLots();
+  const { movements } = useMovements();
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -35,6 +38,9 @@ export default function ProductsPage() {
     concentration: ''
   });
 
+  // Filtro de tipos de producto (multiselección)
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+
   // Helper para nombre de tipo
   const getTypeName = (product: Product) => {
     return (product as any).type?.name || product.type || '-';
@@ -53,10 +59,54 @@ export default function ProductsPage() {
     return product.baseUnit;
   };
 
-  // Agrupar productos: tipo → nombre genérico
+  // Calculate container summary from movements
+  const calculateContainers = (lot: Lot) => {
+    const lotMovements = movements.filter(m => m.lotId === lot.id);
+    const consumed = lotMovements
+      .filter(m => m.type === 'SALIDA')
+      .reduce((sum, m) => sum + m.quantity, 0);
+    const remainingStock = lot.initialStock - consumed;
+    const capacity = lot.containerCapacity || 1;
+    const qtyFull = Math.floor(Math.max(0, remainingStock) / capacity);
+    const remainingQuantity = Math.max(0, remainingStock) % capacity;
+    const qtyEmpty = Math.floor(consumed / capacity);
+    return { qtyFull, qtyEmpty, remainingQuantity, remainingStock, consumed };
+  };
+
+  // Get lots with stock for a product
+  const getProductLots = (productId: string) => {
+    return lots
+      .filter(lot => lot.productId === productId)
+      .filter(lot => {
+        const summary = calculateContainers(lot);
+        return summary.remainingStock > 0;
+      })
+      .sort((a, b) => new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime());
+  };
+
+  // Toggle product dropdown
+  const toggleProductExpand = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  // Filtrar productos por tipos seleccionados
+  const filteredProducts = useMemo(() => {
+    if (filterTypes.length === 0) return products;
+    return products.filter(product => filterTypes.includes(getTypeName(product)));
+  }, [products, filterTypes]);
+
+  // Agrupar productos filtrados: tipo → nombre genérico
   const groupedProducts = useMemo(() => {
     const byType = new Map<string, Map<string, Product[]>>();
-    products.forEach(product => {
+    filteredProducts.forEach(product => {
       const typeName = getTypeName(product);
       const genericName = (product as any).genericName || 'SIN_NOMBRE_GENERICO';
       if (!byType.has(typeName)) byType.set(typeName, new Map());
@@ -66,7 +116,7 @@ export default function ProductsPage() {
     });
     byType.forEach(byGeneric => byGeneric.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name))));
     return { byType, sortedTypes: Array.from(byType.keys()).sort() };
-  }, [products]);
+  }, [filteredProducts]);
 
   useEffect(() => {
     loadSettings();
@@ -131,6 +181,25 @@ export default function ProductsPage() {
     } else {
       resetForm();
     }
+    setShowModal(true);
+  };
+
+  // Open modal with pre-filled generic name
+  const openModalWithGenericName = (genericName: string, typeId: string) => {
+    setEditingProduct(null);
+    setFormData({
+      name: '',
+      genericName: genericName,
+      typeId: typeId || productTypes[0]?.id || '',
+      stateId: productStates[0]?.id || '',
+      baseUnit: 'KG',
+      doseType: 'PER_HECTARE',
+      doseUnit: 'BASE_UNIT',
+      dosePerHectareMin: '',
+      dosePerHectareMax: '',
+      concentrationPerLiter: '',
+      concentration: ''
+    });
     setShowModal(true);
   };
 
@@ -221,12 +290,42 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      {products.length === 0 ? (
+      {/* Filtro de tipos (multiselección) */}
+      <div className="filter-chips mb-2">
+        {groupedProducts.sortedTypes.map(typeName => {
+          const isSelected = filterTypes.includes(typeName);
+          return (
+            <button
+              key={typeName}
+              className={`chip ${isSelected ? 'chip-active' : ''}`}
+              onClick={() => {
+                if (isSelected) {
+                  setFilterTypes(filterTypes.filter(t => t !== typeName));
+                } else {
+                  setFilterTypes([...filterTypes, typeName]);
+                }
+              }}
+            >
+              {isSelected && '✓ '}{typeName}
+            </button>
+          );
+        })}
+        {filterTypes.length > 0 && (
+          <button 
+            className="btn btn-secondary btn-sm"
+            onClick={() => setFilterTypes([])}
+          >
+            ✕ Limpiar
+          </button>
+        )}
+      </div>
+
+      {filteredProducts.length === 0 ? (
         <div className="card">
           <div className="empty-state">
             <div style={{ fontSize: '3rem' }}>📦</div>
-            <h3>No hay productos</h3>
-            <p>Registrá tu primer producto para comenzar</p>
+            <h3>{filterTypes.length > 0 ? `No hay productos de tipo ${filterTypes.join(', ')}` : 'No hay productos'}</h3>
+            <p>{filterTypes.length > 0 ? 'Probá otros tipos o limpiá el filtro' : 'Registrá tu primer producto para comenzar'}</p>
             <button className="btn btn-primary mt-1" onClick={() => openModal()}>
               + Nuevo
             </button>
@@ -253,7 +352,20 @@ export default function ProductsPage() {
                       <React.Fragment key={genericName}>
                         {/* Encabezado de nombre genérico */}
                         <div className="subsection-header">
-                          {title} ({list.length})
+                          <span>{title} ({list.length})</span>
+                          {genericName !== 'SIN_NOMBRE_GENERICO' && (
+                            <button 
+                              className="btn btn-primary btn-sm"
+                              onClick={() => {
+                                // Find the typeId for this type
+                                const typeItem = productTypes.find(t => t.name === typeName);
+                                openModalWithGenericName(genericName, typeItem?.id || '');
+                              }}
+                              title={`Crear producto con nombre genérico "${genericName}"`}
+                            >
+                              + Nuevo
+                            </button>
+                          )}
                         </div>
                         
                         {list.map(product => (
@@ -306,6 +418,60 @@ export default function ProductsPage() {
                                 🗑️
                               </button>
                             </div>
+                            
+                            {/* Dropdown de lotes */}
+                            {(() => {
+                              const productLots = getProductLots(product.id);
+                              if (productLots.length === 0) return null;
+                              
+                              const isExpanded = expandedProducts.has(product.id);
+                              return (
+                                <div className="lots-dropdown">
+                                  <button 
+                                    className="lots-dropdown-toggle"
+                                    onClick={() => toggleProductExpand(product.id)}
+                                  >
+                                    📦 Lotes en stock ({productLots.length}) {isExpanded ? '▲' : '▼'}
+                                  </button>
+                                  
+                                  {isExpanded && (
+                                    <div className="lots-dropdown-content">
+                                      {productLots.map(lot => {
+                                        const summary = calculateContainers(lot);
+                                        const unit = product.baseUnit;
+                                        return (
+                                          <div key={lot.id} className="lot-item">
+                                            <div className="lot-item-header">
+                                              <span className="lot-code">
+                                                {lot.lotCode || lot.id.slice(0, 8)}
+                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {product.baseUnit})</span>}
+                                              </span>
+                                              <span className="lot-stock">
+                                                Stock: {summary.remainingStock.toFixed(2)} {unit}
+                                              </span>
+                                            </div>
+                                            {lot.expiryDate && (
+                                              <span className="lot-expiry">
+                                                Vence: {new Date(lot.expiryDate).toLocaleDateString()}
+                                              </span>
+                                            )}
+                                            {lot.containerCapacity && (
+                                              <div className="lot-containers">
+                                                {[
+                                                  summary.qtyFull > 0 && `Llenos: ${summary.qtyFull}`,
+                                                  summary.qtyEmpty > 0 && `Vacíos: ${summary.qtyEmpty}`,
+                                                  summary.remainingQuantity > 0 && `Parcial: ${summary.remainingQuantity.toFixed(2)} ${unit}`
+                                                ].filter(Boolean).join(' | ')}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         ))}
                       </React.Fragment>
@@ -326,6 +492,7 @@ export default function ProductsPage() {
                   <th>Estado</th>
                   <th>Unidad</th>
                   <th>Dosis/ha</th>
+                  <th>Lotes</th>
                   <th>Acciones</th>
                 </tr>
               </thead>
@@ -336,7 +503,7 @@ export default function ProductsPage() {
                   return (
                     <React.Fragment key={typeName}>
                       <tr style={{ background: 'var(--primary)' }}>
-                        <td colSpan={6} style={{ color: 'white', fontWeight: 600, padding: '0.5rem', textAlign: 'center' }}>
+                        <td colSpan={7} style={{ color: 'white', fontWeight: 600, padding: '0.5rem', textAlign: 'center' }}>
                           {typeName} ({total})
                         </td>
                       </tr>
@@ -346,23 +513,88 @@ export default function ProductsPage() {
                         return (
                           <React.Fragment key={genericName}>
                             <tr style={{ background: 'var(--gray-100)' }}>
-                              <td colSpan={6} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
-                                {title} ({list.length})
+                              <td colSpan={7} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                  <span>{title} ({list.length})</span>
+                                  {genericName !== 'SIN_NOMBRE_GENERICO' && (
+                                    <button 
+                                      className="btn btn-primary btn-sm"
+                                      onClick={() => {
+                                        const typeItem = productTypes.find(t => t.name === typeName);
+                                        openModalWithGenericName(genericName, typeItem?.id || '');
+                                      }}
+                                    >
+                                      + Nuevo
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
-                            {list.map(product => (
-                              <tr key={product.id}>
-                                <td><strong>{product.name}</strong></td>
-                                <td><span className={`badge ${getTypeBadge(product)}`}>{getTypeName(product)}</span></td>
-                                <td>{getStateName(product)}</td>
-                                <td>{product.baseUnit}</td>
-                                <td>{product.dosePerHectareMin && product.dosePerHectareMax ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` : '-'}</td>
-                                <td>
-                                  <button className="btn btn-secondary btn-sm" onClick={() => openModal(product)} style={{ marginRight: '0.5rem' }}>Editar</button>
-                                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(product.id)}>Eliminar</button>
-                                </td>
-                              </tr>
-                            ))}
+                            {list.map(product => {
+                              const productLots = getProductLots(product.id);
+                              return (
+                                <React.Fragment key={product.id}>
+                                  <tr>
+                                    <td><strong>{product.name}</strong></td>
+                                    <td><span className={`badge ${getTypeBadge(product)}`}>{getTypeName(product)}</span></td>
+                                    <td>{getStateName(product)}</td>
+                                    <td>{product.baseUnit}</td>
+                                    <td>{product.dosePerHectareMin && product.dosePerHectareMax ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` : '-'}</td>
+                                    <td>
+                                      {productLots.length > 0 ? (
+                                        <button 
+                                          className="btn btn-secondary btn-sm"
+                                          onClick={() => toggleProductExpand(product.id)}
+                                        >
+                                          {expandedProducts.has(product.id) ? '▼' : '▶'} {productLots.length} lote(s)
+                                        </button>
+                                      ) : (
+                                        <span style={{ color: 'var(--gray-500)' }}>-</span>
+                                      )}
+                                    </td>
+                                    <td>
+                                      <button className="btn btn-secondary btn-sm" onClick={() => openModal(product)} style={{ marginRight: '0.5rem' }}>Editar</button>
+                                      <button className="btn btn-danger btn-sm" onClick={() => handleDelete(product.id)}>Eliminar</button>
+                                    </td>
+                                  </tr>
+                                  {expandedProducts.has(product.id) && productLots.map(lot => {
+                                    const summary = calculateContainers(lot);
+                                    return (
+                                      <tr key={lot.id} className="lot-expanded-row">
+                                        <td colSpan={2}>
+                                          <div className="lot-expanded-card">
+                                            <div className="lot-expanded-header">
+                                              <span className="lot-code">
+                                                Código: {lot.lotCode || lot.id.slice(0, 8)}
+                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {product.baseUnit})</span>}
+                                              </span>
+                                              <span className="lot-stock-badge">
+                                                Stock: {summary.remainingStock.toFixed(2)} {product.baseUnit}
+                                              </span>
+                                            </div>
+                                            <div className="lot-expanded-details">
+                                              {lot.expiryDate && (
+                                                <span className="lot-detail">📅 Vence: {new Date(lot.expiryDate).toLocaleDateString()}</span>
+                                              )}
+                                              {lot.containerCapacity && (
+                                                <span className="lot-detail">
+                                                  📦 {[
+                                                    summary.qtyFull > 0 && `Llenos: ${summary.qtyFull}`,
+                                                    summary.qtyEmpty > 0 && `Vacíos: ${summary.qtyEmpty}`,
+                                                    summary.remainingQuantity > 0 && `Parcial: ${summary.remainingQuantity.toFixed(2)} ${product.baseUnit}`
+                                                  ].filter(Boolean).join(' | ')}
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td colSpan={5}></td>
+                                      </tr>
+                                    );
+                                  })}
+                                </React.Fragment>
+                              );
+                            })}
                           </React.Fragment>
                         );
                       })}
