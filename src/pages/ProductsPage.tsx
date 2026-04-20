@@ -43,14 +43,6 @@ export default function ProductsPage() {
   
   // Buscador
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchFields, setSearchFields] = useState<string[]>(['name', 'genericName', 'type', 'state']);
-  
-  const availableSearchFields = [
-    { value: 'name', label: 'Nombre' },
-    { value: 'genericName', label: 'Nombre Genérico' },
-    { value: 'type', label: 'Tipo' },
-    { value: 'state', label: 'Estado' },
-  ];
 
   // Helper para nombre de tipo
   const getTypeName = (product: Product) => {
@@ -117,11 +109,12 @@ export default function ProductsPage() {
       result = result.filter(product => filterTypes.includes(getTypeName(product)));
     }
     
-    // Apply search filter
+    // Apply search filter (always search all fields)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
+      const searchAllFields = ['name', 'genericName', 'type', 'state'];
       result = result.filter(product => {
-        return searchFields.some(field => {
+        return searchAllFields.some(field => {
           switch (field) {
             case 'name':
               return product.name?.toLowerCase().includes(query);
@@ -139,7 +132,7 @@ export default function ProductsPage() {
     }
     
     return result;
-  }, [products, filterTypes, searchQuery, searchFields]);
+  }, [products, filterTypes, searchQuery]);
 
   // Agrupar productos filtrados: tipo → nombre genérico
   const groupedProducts = useMemo(() => {

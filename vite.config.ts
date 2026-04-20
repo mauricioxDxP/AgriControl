@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
+import fs from 'fs';
 
 export default defineConfig({
   plugins: [
@@ -76,15 +77,15 @@ export default defineConfig({
     host: true, // Escucha en todas las interfaces de red
     port: 3000,
     allowedHosts: ['desktop-mauricio'],
-    https: {
-      key: './key.pem',
-      cert: './cert.pem'
-    },
+    https: fs.existsSync('./key.pem') ? {
+      key: fs.readFileSync('./key.pem'),
+      cert: fs.readFileSync('./cert.pem')
+    } : undefined,
     proxy: {
       '/api': {
-        target: 'https://localhost:3001',
+        target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: true
+        secure: false
       }
     }
   }
