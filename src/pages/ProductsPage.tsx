@@ -43,6 +43,9 @@ export default function ProductsPage() {
   
   // Buscador
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Agrupar por nombre genérico
+  const [groupByGeneric, setGroupByGeneric] = useState(false);
 
   // Helper para nombre de tipo
   const getTypeName = (product: Product) => {
@@ -139,9 +142,7 @@ export default function ProductsPage() {
     const byType = new Map<string, Map<string, Product[]>>();
     filteredProducts.forEach(product => {
       const typeName = getTypeName(product);
-      const genericName = (product as any).genericName;
-      // Only group if there's actually a generic name
-      if (!genericName) return;
+      const genericName = groupByGeneric ? ((product as any).genericName || '__SIN_GENERICO__') : '__ALL__';
       
       if (!byType.has(typeName)) byType.set(typeName, new Map());
       const byGeneric = byType.get(typeName)!;
@@ -150,7 +151,7 @@ export default function ProductsPage() {
     });
     byType.forEach(byGeneric => byGeneric.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name))));
     return { byType, sortedTypes: Array.from(byType.keys()).sort() };
-  }, [filteredProducts]);
+  }, [filteredProducts, groupByGeneric]);
 
   useEffect(() => {
     loadSettings();
@@ -340,32 +341,42 @@ export default function ProductsPage() {
         )}
       </div>
 
-      {/* Filtro de tipos (multiselección) */}
-      <div className="filter-chips mb-2">
-        {groupedProducts.sortedTypes.map(typeName => {
-          const isSelected = filterTypes.includes(typeName);
-          return (
-            <button
-              key={typeName}
-              className={`chip ${isSelected ? 'chip-active' : ''}`}
-              onClick={() => {
-                if (isSelected) {
-                  setFilterTypes(filterTypes.filter(t => t !== typeName));
-                } else {
-                  setFilterTypes([...filterTypes, typeName]);
-                }
-              }}
-            >
-              {isSelected && '✓ '}{typeName}
-            </button>
-          );
-        })}
+      {/* Filtro de agrupamiento y tipos (multiselección) */}
+      <div className="filter-bar mb-2">
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={groupByGeneric}
+            onChange={e => setGroupByGeneric(e.target.checked)}
+          />
+          <span>Agrupar por nombre genérico</span>
+        </label>
+        <div className="filter-chips">
+          {productTypes.map(type => {
+            const isSelected = filterTypes.includes(type.name);
+            return (
+              <button
+                key={type.id}
+                className={`chip ${isSelected ? 'chip-active' : ''}`}
+                onClick={() => {
+                  if (isSelected) {
+                    setFilterTypes(filterTypes.filter(t => t !== type.name));
+                  } else {
+                    setFilterTypes([...filterTypes, type.name]);
+                  }
+                }}
+              >
+                {isSelected && '✓ '}{type.name}
+              </button>
+            );
+          })}
+        </div>
         {filterTypes.length > 0 && (
           <button 
             className="btn btn-secondary btn-sm"
             onClick={() => setFilterTypes([])}
           >
-            ✕ Limpiar
+            ✕
           </button>
         )}
       </div>
@@ -399,28 +410,29 @@ export default function ProductsPage() {
                     
                     return (
                       <React.Fragment key={genericName}>
-                        {/* Encabezado de nombre genérico */}
-                        <div className="subsection-header">
-                          <span>{genericName} ({list.length})</span>
-                          {(
-                            <button 
-                              className="btn btn-primary btn-sm"
-                              onClick={() => {
-                                // Find the typeId for this type
-                                const typeItem = productTypes.find(t => t.name === typeName);
-                                openModalWithGenericName(genericName, typeItem?.id || '');
-                              }}
-                              title={`Crear producto con nombre genérico "${genericName}"`}
-                            >
-                              + Nuevo
-                            </button>
-                          )}
-                        </div>
+                        {/* Encabezado de nombre genérico - hide __ALL__ */}
+                        {!genericName.startsWith('__') && (
+                          <div className="subsection-header">
+                            <span>{genericName} ({list.length})</span>
+                            {(
+                              <button 
+                                className="btn btn-primary btn-sm"
+                                onClick={() => {
+                                  const typeItem = productTypes.find(t => t.name === typeName);
+                                  openModalWithGenericName(genericName, typeItem?.id || '');
+                                }}
+                                title={`Crear producto con nombre genérico "${genericName}"`}
+                              >
+                                + Nuevo
+                              </button>
+                            )}
+                          </div>
+                        )}
                         
                         {list.map(product => (
                           <div key={product.id} className="card-mobile">
                             <div className="card-mobile-header">
-                              <span className="card-mobile-date">{product.name}</span>
+                              <span className="card-mobile-date">{(product as any).genericName ? '- ' : ''}{product.name}</span>
                               <span className={`card-mobile-badge ${getTypeBadge(product)}`}>
                                 {getTypeName(product)}
                               </span>
@@ -556,14 +568,15 @@ export default function ProductsPage() {
                           {typeName} ({total})
                         </td>
                       </tr>
-                      {Array.from(byGeneric.keys()).sort().map(genericName => {
-const list = byGeneric.get(genericName)!;
+{Array.from(byGeneric.keys()).sort().map(genericName => {
+                        const list = byGeneric.get(genericName)!;
                         return (
                           <React.Fragment key={genericName}>
-                            <tr style={{ background: 'var(--gray-100)' }}>
-                              <td colSpan={7} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                  <span>{genericName} ({list.length})</span>
+                            {!genericName.startsWith('__') && (
+                              <tr style={{ background: 'var(--gray-100)' }}>
+                                <td colSpan={7} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span>{genericName} ({list.length})</span>
                                   {(
                                     <button 
                                       className="btn btn-primary btn-sm"
@@ -578,6 +591,7 @@ const list = byGeneric.get(genericName)!;
                                 </div>
                               </td>
                             </tr>
+                            )}
                             {list.map(product => {
                               const productLots = getProductLots(product.id);
                               return (

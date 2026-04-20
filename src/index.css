@@ -1068,6 +1068,7 @@ div.filter-chips {
   /* Barra de filtros */
   .filter-bar {
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
     align-items: center;
   }
@@ -1131,8 +1132,8 @@ div.filter-chips {
     line-height: 1;
   }
   
-  /* Chips de filtro */
-button.chip {
+/* Chips de filtro */
+  button.chip {
     padding: 0.4rem 0.75rem;
     border: 1px solid var(--gray-300);
     border-radius: 20px;
@@ -1141,6 +1142,16 @@ button.chip {
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
+  }
+  
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem;
+    background: var(--gray-50);
+    border-radius: var(--radius);
   }
   
   button.chip:hover {
