@@ -139,7 +139,10 @@ export default function ProductsPage() {
     const byType = new Map<string, Map<string, Product[]>>();
     filteredProducts.forEach(product => {
       const typeName = getTypeName(product);
-      const genericName = (product as any).genericName || 'SIN_NOMBRE_GENERICO';
+      const genericName = (product as any).genericName;
+      // Only group if there's actually a generic name
+      if (!genericName) return;
+      
       if (!byType.has(typeName)) byType.set(typeName, new Map());
       const byGeneric = byType.get(typeName)!;
       if (!byGeneric.has(genericName)) byGeneric.set(genericName, []);
@@ -393,14 +396,13 @@ export default function ProductsPage() {
                   
                   {Array.from(byGeneric.keys()).sort().map(genericName => {
                     const list = byGeneric.get(genericName)!;
-                    const title = genericName === 'SIN_NOMBRE_GENERICO' ? '(Sin nombre genérico)' : genericName;
                     
                     return (
                       <React.Fragment key={genericName}>
                         {/* Encabezado de nombre genérico */}
                         <div className="subsection-header">
-                          <span>{title} ({list.length})</span>
-                          {genericName !== 'SIN_NOMBRE_GENERICO' && (
+                          <span>{genericName} ({list.length})</span>
+                          {(
                             <button 
                               className="btn btn-primary btn-sm"
                               onClick={() => {
@@ -555,15 +557,14 @@ export default function ProductsPage() {
                         </td>
                       </tr>
                       {Array.from(byGeneric.keys()).sort().map(genericName => {
-                        const list = byGeneric.get(genericName)!;
-                        const title = genericName === 'SIN_NOMBRE_GENERICO' ? '(Sin nombre genérico)' : genericName;
+const list = byGeneric.get(genericName)!;
                         return (
                           <React.Fragment key={genericName}>
                             <tr style={{ background: 'var(--gray-100)' }}>
                               <td colSpan={7} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                  <span>{title} ({list.length})</span>
-                                  {genericName !== 'SIN_NOMBRE_GENERICO' && (
+                                  <span>{genericName} ({list.length})</span>
+                                  {(
                                     <button 
                                       className="btn btn-primary btn-sm"
                                       onClick={() => {
