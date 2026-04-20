@@ -1004,6 +1004,28 @@ body {
     }
   }
   
+  /* Encabezados de sección en vista móvil */
+  .section-header {
+    background: var(--primary);
+    color: white;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    text-align: center;
+    font-size: 1rem;
+    margin: 1rem 0 0.5rem 0;
+    border-radius: var(--radius);
+  }
+  
+  .subsection-header {
+    background: var(--gray-100);
+    color: var(--gray-800);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    border-left: 3px solid var(--gray-400);
+    margin: 1rem 0 0.25rem 0;
+  }
+  
   /* Ocultar tabla en móvil */
   @media (max-width: 800px) {
     .table-container {

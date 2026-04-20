@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useProducts } from '../hooks/useData';
 import { Product, BaseUnit, DoseType, DoseUnit } from '../types';
 import { settingsService } from '../services';
@@ -34,6 +34,39 @@ export default function ProductsPage() {
     concentrationPerLiter: '',
     concentration: ''
   });
+
+  // Helper para nombre de tipo
+  const getTypeName = (product: Product) => {
+    return (product as any).type?.name || product.type || '-';
+  };
+
+  // Helper para nombre de estado
+  const getStateName = (product: Product) => {
+    return (product as any).state?.name || product.state || '-';
+  };
+
+  // Helper para unidad de dosis
+  const getDoseUnit = (product: Product): string => {
+    if (product.doseUnit && product.doseUnit !== 'BASE_UNIT') {
+      return product.doseUnit;
+    }
+    return product.baseUnit;
+  };
+
+  // Agrupar productos: tipo → nombre genérico
+  const groupedProducts = useMemo(() => {
+    const byType = new Map<string, Map<string, Product[]>>();
+    products.forEach(product => {
+      const typeName = getTypeName(product);
+      const genericName = (product as any).genericName || 'SIN_NOMBRE_GENERICO';
+      if (!byType.has(typeName)) byType.set(typeName, new Map());
+      const byGeneric = byType.get(typeName)!;
+      if (!byGeneric.has(genericName)) byGeneric.set(genericName, []);
+      byGeneric.get(genericName)!.push(product);
+    });
+    byType.forEach(byGeneric => byGeneric.forEach(list => list.sort((a, b) => a.name.localeCompare(b.name))));
+    return { byType, sortedTypes: Array.from(byType.keys()).sort() };
+  }, [products]);
 
   useEffect(() => {
     loadSettings();
@@ -99,22 +132,6 @@ export default function ProductsPage() {
       resetForm();
     }
     setShowModal(true);
-  };
-
-  const getTypeName = (product: Product) => {
-    return (product as any).type?.name || product.type || '-';
-  };
-
-  const getStateName = (product: Product) => {
-    return (product as any).state?.name || product.state || '-';
-  };
-
-  // Obtener unidad de dosis para mostrar
-  const getDoseUnit = (product: Product): string => {
-    if (product.doseUnit && product.doseUnit !== 'BASE_UNIT') {
-      return product.doseUnit;
-    }
-    return product.baseUnit;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,60 +234,86 @@ export default function ProductsPage() {
         </div>
       ) : (
         <>
-          {/* Vista móvil - Cards */}
+          {/* Vista móvil - Cards con separación por tipo y nombre genérico */}
           <div className="mobile-cards">
-            {products.map(product => (
-              <div key={product.id} className="card-mobile">
-                <div className="card-mobile-header">
-                  <span className="card-mobile-date">{product.name}</span>
-                  <span className={`card-mobile-badge ${getTypeBadge(product)}`}>
-                    {getTypeName(product)}
-                  </span>
-                </div>
-                
-                <div className="card-mobile-content">
-                  <div className="card-mobile-row">
-                    <div>
-                      <span className="card-mobile-label">Estado:</span>
-                      <span>{getStateName(product)}</span>
-                    </div>
-                    <div>
-                      <span className="card-mobile-label">Unidad:</span>
-                      <span>{product.baseUnit}</span>
-                    </div>
+            {groupedProducts.sortedTypes.map(typeName => {
+              const byGeneric = groupedProducts.byType.get(typeName)!;
+              return (
+                <React.Fragment key={typeName}>
+                  {/* Encabezado de tipo */}
+                  <div className="section-header">
+                    {typeName} ({Array.from(byGeneric.values()).reduce((s, a) => s + a.length, 0)})
                   </div>
                   
-                  {product.dosePerHectareMin && product.dosePerHectareMax && (
-                    <div className="card-mobile-section">
-                      <span className="card-mobile-label">Dosis/ha:</span>
-                      <span>{product.dosePerHectareMin}-{product.dosePerHectareMax} {getDoseUnit(product)}/ha</span>
-                    </div>
-                  )}
-                  {product.concentrationPerLiter && (
-                    <div className="card-mobile-section">
-                      <span className="card-mobile-label">Conc:</span>
-                      <span>{product.concentrationPerLiter} cc/L</span>
-                    </div>
-                  )}
-                </div>
-                
-                <div className="card-mobile-actions">
-                  <button 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => openModal(product)}
-                    style={{ flex: 1 }}
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDelete(product.id)}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
+                  {Array.from(byGeneric.keys()).sort().map(genericName => {
+                    const list = byGeneric.get(genericName)!;
+                    const title = genericName === 'SIN_NOMBRE_GENERICO' ? '(Sin nombre genérico)' : genericName;
+                    
+                    return (
+                      <React.Fragment key={genericName}>
+                        {/* Encabezado de nombre genérico */}
+                        <div className="subsection-header">
+                          {title} ({list.length})
+                        </div>
+                        
+                        {list.map(product => (
+                          <div key={product.id} className="card-mobile">
+                            <div className="card-mobile-header">
+                              <span className="card-mobile-date">{product.name}</span>
+                              <span className={`card-mobile-badge ${getTypeBadge(product)}`}>
+                                {getTypeName(product)}
+                              </span>
+                            </div>
+                            
+                            <div className="card-mobile-content">
+                              <div className="card-mobile-row">
+                                <div>
+                                  <span className="card-mobile-label">Estado:</span>
+                                  <span>{getStateName(product)}</span>
+                                </div>
+                                <div>
+                                  <span className="card-mobile-label">Unidad:</span>
+                                  <span>{product.baseUnit}</span>
+                                </div>
+                              </div>
+                              
+                              {product.dosePerHectareMin && product.dosePerHectareMax && (
+                                <div className="card-mobile-section">
+                                  <span className="card-mobile-label">Dosis/ha:</span>
+                                  <span>{product.dosePerHectareMin}-{product.dosePerHectareMax} {getDoseUnit(product)}/ha</span>
+                                </div>
+                              )}
+                              {product.concentrationPerLiter && (
+                                <div className="card-mobile-section">
+                                  <span className="card-mobile-label">Conc:</span>
+                                  <span>{product.concentrationPerLiter} cc/L</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="card-mobile-actions">
+                              <button 
+                                className="btn btn-secondary btn-sm"
+                                onClick={() => openModal(product)}
+                                style={{ flex: 1 }}
+                              >
+                                ✏️ Editar
+                              </button>
+                              <button 
+                                className="btn btn-danger btn-sm"
+                                onClick={() => handleDelete(product.id)}
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
           </div>
 
           {/* Vista desktop - Tabla */}
@@ -287,38 +330,45 @@ export default function ProductsPage() {
                 </tr>
               </thead>
               <tbody>
-                {products.map(product => (
-                  <tr key={product.id}>
-                    <td><strong>{product.name}</strong></td>
-                    <td>
-                      <span className={`badge ${getTypeBadge(product)}`}>
-                        {getTypeName(product)}
-                      </span>
-                    </td>
-                    <td>{getStateName(product)}</td>
-                    <td>{product.baseUnit}</td>
-                    <td>
-                      {product.dosePerHectareMin && product.dosePerHectareMax 
-                        ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` 
-                        : '-'}
-                    </td>
-                    <td>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openModal(product)}
-                        style={{ marginRight: '0.5rem' }}
-                      >
-                        Editar
-                      </button>
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(product.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {groupedProducts.sortedTypes.map(typeName => {
+                  const byGeneric = groupedProducts.byType.get(typeName)!;
+                  const total = Array.from(byGeneric.values()).reduce((s, a) => s + a.length, 0);
+                  return (
+                    <React.Fragment key={typeName}>
+                      <tr style={{ background: 'var(--primary)' }}>
+                        <td colSpan={6} style={{ color: 'white', fontWeight: 600, padding: '0.5rem', textAlign: 'center' }}>
+                          {typeName} ({total})
+                        </td>
+                      </tr>
+                      {Array.from(byGeneric.keys()).sort().map(genericName => {
+                        const list = byGeneric.get(genericName)!;
+                        const title = genericName === 'SIN_NOMBRE_GENERICO' ? '(Sin nombre genérico)' : genericName;
+                        return (
+                          <React.Fragment key={genericName}>
+                            <tr style={{ background: 'var(--gray-100)' }}>
+                              <td colSpan={6} style={{ padding: '0.25rem 0.5rem', fontWeight: 500, borderLeft: '3px solid var(--gray-400)' }}>
+                                {title} ({list.length})
+                              </td>
+                            </tr>
+                            {list.map(product => (
+                              <tr key={product.id}>
+                                <td><strong>{product.name}</strong></td>
+                                <td><span className={`badge ${getTypeBadge(product)}`}>{getTypeName(product)}</span></td>
+                                <td>{getStateName(product)}</td>
+                                <td>{product.baseUnit}</td>
+                                <td>{product.dosePerHectareMin && product.dosePerHectareMax ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` : '-'}</td>
+                                <td>
+                                  <button className="btn btn-secondary btn-sm" onClick={() => openModal(product)} style={{ marginRight: '0.5rem' }}>Editar</button>
+                                  <button className="btn btn-danger btn-sm" onClick={() => handleDelete(product.id)}>Eliminar</button>
+                                </td>
+                              </tr>
+                            ))}
+                          </React.Fragment>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>

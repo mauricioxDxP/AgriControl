@@ -1,13 +1,26 @@
-import { useState } from 'react';
-import { useLots, useProducts } from '../hooks/useData';
+import React, { useState, useMemo } from 'react';
+import { useLots, useProducts, useMovements } from '../hooks/useData';
 import { ContainerType, Lot } from '../types';
+
+type FilterType = 'all' | 'active' | 'empty' | 'expired';
+
+interface ContainerSummary {
+  qtyFull: number;
+  qtyEmpty: number;
+  remainingQuantity: number;
+  remainingStock: number;
+  consumed: number;
+}
 
 export default function LotsPage() {
   const { lots, loading, addLot, updateLot, deleteLot } = useLots();
   const { products } = useProducts();
+  const { movements } = useMovements();
   const [showModal, setShowModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingLot, setEditingLot] = useState<Lot | null>(null);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [expandedLots, setExpandedLots] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     productId: '',
     entryDate: new Date().toISOString().split('T')[0],
@@ -97,10 +110,6 @@ export default function LotsPage() {
     }
   };
 
-  const getProductName = (productId: string) => {
-    return products.find(p => p.id === productId)?.name || 'Sin producto';
-  };
-
   const isExpired = (expiryDate?: string) => {
     if (!expiryDate) return false;
     return new Date(expiryDate) < new Date();
@@ -108,6 +117,90 @@ export default function LotsPage() {
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString();
+  };
+
+  // Calculate container summary from movements
+  const calculateContainers = (lot: Lot): ContainerSummary => {
+    const lotMovements = movements.filter(m => m.lotId === lot.id);
+    const consumed = lotMovements
+      .filter(m => m.type === 'SALIDA')
+      .reduce((sum, m) => sum + m.quantity, 0);
+    const remainingStock = lot.initialStock - consumed;
+    const capacity = lot.containerCapacity || 1;
+    const qtyFull = Math.floor(Math.max(0, remainingStock) / capacity);
+    const remainingQuantity = Math.max(0, remainingStock) % capacity;
+    const qtyEmpty = Math.floor(consumed / capacity);
+    return { qtyFull, qtyEmpty, remainingQuantity, remainingStock, consumed };
+  };
+
+  // Group lots by product
+  const lotsByProduct = useMemo(() => {
+    const grouped: Record<string, Lot[]> = {};
+    lots.forEach(lot => {
+      if (!grouped[lot.productId]) {
+        grouped[lot.productId] = [];
+      }
+      grouped[lot.productId].push(lot);
+    });
+    // Sort each group by entryDate descending
+    Object.keys(grouped).forEach(productId => {
+      grouped[productId].sort((a, b) => 
+        new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime()
+      );
+    });
+    return grouped;
+  }, [lots]);
+
+  // Apply filters
+  const getFilteredLotsByProduct = useMemo(() => {
+    const filtered: Record<string, Lot[]> = {};
+    Object.keys(lotsByProduct).forEach(productId => {
+      filtered[productId] = lotsByProduct[productId].filter(lot => {
+        const summary = calculateContainers(lot);
+        const expired = isExpired(lot.expiryDate);
+        
+        switch (filter) {
+          case 'active':
+            return !expired && lot.initialStock > 0;
+          case 'empty':
+            return summary.remainingStock <= 0;
+          case 'expired':
+            return expired;
+          default:
+            return true;
+        }
+      });
+    });
+    return filtered;
+  }, [lotsByProduct, filter, movements]);
+
+  // Get product name helper
+  const getProductName = (productId: string) => {
+    return products.find(p => p.id === productId)?.name || 'Sin producto';
+  };
+
+  // Get product base unit helper
+  const getProductUnit = (productId: string) => {
+    return products.find(p => p.id === productId)?.baseUnit || 'L';
+  };
+
+  // Toggle expanded lot
+  const toggleExpand = (lotId: string) => {
+    setExpandedLots(prev => {
+      const next = new Set(prev);
+      if (next.has(lotId)) {
+        next.delete(lotId);
+      } else {
+        next.add(lotId);
+      }
+      return next;
+    });
+  };
+
+  // Check if lot is empty
+  const isEmpty = (lot: Lot) => {
+    const summary = calculateContainers(lot);
+    return summary.remainingStock <= 0;
   };
 
   // Get selected product's unit
@@ -128,6 +221,21 @@ export default function LotsPage() {
         <button className="btn btn-primary" onClick={openModal} disabled={products.length === 0}>
           + Nuevo
         </button>
+      </div>
+
+      {/* Filtro */}
+      <div className="mb-2">
+        <select 
+          className="form-select" 
+          value={filter} 
+          onChange={e => setFilter(e.target.value as FilterType)}
+          style={{ maxWidth: '200px' }}
+        >
+          <option value="all">Todos</option>
+          <option value="active">Activos</option>
+          <option value="empty">Vacíos</option>
+          <option value="expired">Vencidos</option>
+        </select>
       </div>
 
       {products.length === 0 && (
@@ -151,150 +259,370 @@ export default function LotsPage() {
         </div>
       ) : (
         <>
-          {/* Vista móvil - Cards */}
+          {/* Vista móvil - Cards agrupados por producto */}
           <div className="mobile-cards">
-            {lots.map(lot => (
-              <div key={lot.id} className="card-mobile">
-                <div className="card-mobile-header">
-                  <span className="card-mobile-date">{formatDate(lot.entryDate)}</span>
-                  {isExpired(lot.expiryDate) ? (
-                    <span className="card-mobile-badge badge-danger">Vencido</span>
-                  ) : (
-                    <span className="card-mobile-badge badge-primary">Activo</span>
-                  )}
-                </div>
-                
-                <div className="card-mobile-content">
-                  <div className="card-mobile-section">
-                    <span className="card-mobile-label">Producto:</span>
-                    <span>{getProductName(lot.productId)}</span>
+            {Object.keys(getFilteredLotsByProduct).map(productId => {
+              const productLots = getFilteredLotsByProduct[productId];
+              if (productLots.length === 0) return null;
+              const productName = getProductName(productId);
+              const productUnit = getProductUnit(productId);
+              
+              return (
+                <div key={productId} style={{ marginBottom: '1.5rem' }}>
+                  {/* Header del producto */}
+                  <div style={{ 
+                    background: 'var(--primary)', 
+                    color: 'var(--white)', 
+                    padding: '0.75rem', 
+                    borderRadius: 'var(--radius) var(--radius) 0 0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <strong>{productName}</strong>
+                    <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>
+                      {productLots.length} lote{productLots.length !== 1 ? 's' : ''}
+                    </span>
                   </div>
                   
-                  {lot.lotCode && (
-                    <div className="card-mobile-section">
-                      <span className="card-mobile-label">Código:</span>
-                      <span className="badge badge-info">{lot.lotCode}</span>
-                    </div>
-                  )}
-                  
-                  <div className="card-mobile-row">
-                    <div>
-                      <span className="card-mobile-label">Stock:</span>
-                      <span>{lot.initialStock}</span>
-                    </div>
-                    {lot.containerCapacity && (
-                      <div>
-                        <span className="card-mobile-label">Contenedor:</span>
-                        <span>{(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}</span>
+                  {/* Lotes del producto */}
+                  {productLots.map(lot => {
+                    const summary = calculateContainers(lot);
+                    const expanded = expandedLots.has(lot.id);
+                    const unit = productUnit;
+                    
+                    return (
+                      <div key={lot.id} className="card-mobile" style={{ margin: 0, borderRadius: 0 }}>
+                        <div className="card-mobile-header">
+                          <span className="card-mobile-date">{formatDate(lot.entryDate)}</span>
+                          {isExpired(lot.expiryDate) ? (
+                            <span className="card-mobile-badge badge-danger">Vencido</span>
+                          ) : isEmpty(lot) ? (
+                            <span className="card-mobile-badge badge-warning">Vacío</span>
+                          ) : (
+                            <span className="card-mobile-badge badge-primary">Activo</span>
+                          )}
+                        </div>
+                        
+                        <div className="card-mobile-content">
+                          {lot.lotCode && (
+                            <div className="card-mobile-section">
+                              <span className="card-mobile-label">Código:</span>
+                              <span className="badge badge-info">{lot.lotCode}</span>
+                            </div>
+                          )}
+                          
+                          <div className="card-mobile-row">
+                            <div>
+                              <span className="card-mobile-label">Stock:</span>
+                              <span>
+                                {lot.containerCapacity 
+                                  ? `${summary.remainingStock.toFixed(1)} / ${lot.initialStock} ${unit}`
+                                  : `${lot.initialStock} ${unit}`
+                                }
+                              </span>
+                            </div>
+                            {lot.containerCapacity && (
+                              <div>
+                                <span className="card-mobile-label">Contenedor:</span>
+                                <span>{(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{unit}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {lot.expiryDate && (
+                            <div className="card-mobile-section">
+                              <span className="card-mobile-label">Vencimiento:</span>
+                              <span>{formatDate(lot.expiryDate)}</span>
+                            </div>
+                          )}
+                          
+                          {lot.supplier && (
+                            <div className="card-mobile-section">
+                              <span className="card-mobile-label">Proveedor:</span>
+                              <span>{lot.supplier}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Dropdown de contenedores */}
+                        {lot.containerCapacity && expanded && (
+                          <div style={{ 
+                            padding: '0.75rem',
+                            background: 'var(--gray-100)',
+                            borderTop: '1px solid var(--gray-200)'
+                          }}>
+                            {/* Contenedores llenos */}
+                            {summary.qtyFull > 0 && (
+                              <div style={{ 
+                                padding: '0.5rem',
+                                background: 'var(--success-light)',
+                                marginBottom: '0.5rem',
+                                borderRadius: 'var(--radius)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>✓</span>
+                                  <span><strong>Llenos:</strong> {summary.qtyFull}</span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
+                                    ({lot.containerCapacity}{unit} c/u)
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Contenedor en uso (parcial) */}
+                            {summary.remainingQuantity > 0 && (
+                              <div style={{ 
+                                padding: '0.5rem',
+                                background: 'var(--warning-light)',
+                                marginBottom: '0.5rem',
+                                borderRadius: 'var(--radius)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>⚠</span>
+                                  <span><strong>En uso:</strong> {summary.remainingQuantity.toFixed(1)}{unit}</span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
+                                    (de {lot.containerCapacity}{unit})
+                                  </span>
+                                </div>
+                                <div style={{ 
+                                  marginTop: '0.5rem', 
+                                  height: '8px', 
+                                  background: 'var(--gray-200)', 
+                                  borderRadius: '4px',
+                                  overflow: 'hidden'
+                                }}>
+                                  <div style={{ 
+                                    width: `${(summary.remainingQuantity / (lot.containerCapacity || 1)) * 100}%`,
+                                    height: '100%',
+                                    background: 'var(--warning)',
+                                    transition: 'width 0.3s'
+                                  }}></div>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Contenedores vacíos */}
+                            {summary.qtyEmpty > 0 && (
+                              <div style={{ 
+                                padding: '0.5rem',
+                                background: 'var(--gray-200)',
+                                borderRadius: 'var(--radius)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>✕</span>
+                                  <span><strong>Vacíos:</strong> {summary.qtyEmpty}</span>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
+                                    ({lot.containerCapacity}{unit} c/u)
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {/* Stock agotado */}
+                            {summary.remainingStock <= 0 && summary.qtyFull === 0 && summary.remainingQuantity === 0 && (
+                              <div style={{ 
+                                padding: '0.5rem',
+                                background: 'var(--danger-light)',
+                                borderRadius: 'var(--radius)'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                  <span>⚠</span>
+                                  <span><strong>Stock agotado</strong></span>
+                                </div>
+                              </div>
+                            )}
+                            
+                            {summary.consumed > 0 && (
+                              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                                Consumido: {summary.consumed.toFixed(1)} {unit}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        <div className="card-mobile-actions">
+                          {lot.containerCapacity && (
+                            <button 
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => toggleExpand(lot.id)}
+                              style={{ flex: 1 }}
+                            >
+                              {expanded ? '▼ Ocultar' : '▶ Contenedores'}
+                            </button>
+                          )}
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => openEditModal(lot)}
+                            style={{ flex: 1 }}
+                          >
+                            ✏️ Editar
+                          </button>
+                          <button 
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(lot.id)}
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  {lot.expiryDate && (
-                    <div className="card-mobile-section">
-                      <span className="card-mobile-label">Vencimiento:</span>
-                      <span>{formatDate(lot.expiryDate)}</span>
-                    </div>
-                  )}
-                  
-                  {lot.supplier && (
-                    <div className="card-mobile-section">
-                      <span className="card-mobile-label">Proveedor:</span>
-                      <span>{lot.supplier}</span>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-                
-                <div className="card-mobile-actions">
-                  <button 
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => openEditModal(lot)}
-                    style={{ flex: 1 }}
-                  >
-                    ✏️ Editar
-                  </button>
-                  <button 
-                    className="btn btn-danger btn-sm"
-                    onClick={() => handleDelete(lot.id)}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          {/* Vista desktop - Tabla */}
+          {/* Vista desktop - Tabla agrupada */}
           <div className="table-container hide-mobile">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Producto</th>
-                  <th>Fecha Ingreso</th>
-                  <th>Vencimiento</th>
-                  <th>Proveedor</th>
-                  <th>Stock</th>
-                  <th>Contenedor</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-                <tbody>
-                {lots.map(lot => (
-                  <tr key={lot.id}>
-                    <td>
-                      {lot.lotCode ? (
-                        <span className="badge badge-info">{lot.lotCode}</span>
-                      ) : (
-                        <span style={{ color: 'var(--gray-400)' }}>-</span>
-                      )}
-                    </td>
-                    <td><strong>{getProductName(lot.productId)}</strong></td>
-                    <td>{formatDate(lot.entryDate)}</td>
-                    <td>
-                      {lot.expiryDate ? formatDate(lot.expiryDate) : '-'}
-                      {isExpired(lot.expiryDate) && (
-                        <span className="badge badge-danger" style={{ marginLeft: '0.5rem' }}>
-                          Vencido
-                        </span>
-                      )}
-                    </td>
-                    <td>{lot.supplier || '-'}</td>
-                    <td>{lot.initialStock}</td>
-                    <td>
-                      {lot.containerCapacity && (
-                        <span className="badge badge-info">
-                          {(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{products.find(p => p.id === lot.productId)?.baseUnit || 'L'}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {isExpired(lot.expiryDate) ? (
-                        <span className="badge badge-danger">Vencido</span>
-                      ) : (
-                        <span className="badge badge-primary">Activo</span>
-                      )}
-                    </td>
-                    <td>
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => openEditModal(lot)}
-                        style={{ marginRight: '0.5rem' }}
-                      >
-                        Editar
-                      </button>
-                      <button 
-                        className="btn btn-danger btn-sm"
-                        onClick={() => handleDelete(lot.id)}
-                      >
-                        Eliminar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {Object.keys(getFilteredLotsByProduct).map(productId => {
+              const productLots = getFilteredLotsByProduct[productId];
+              if (productLots.length === 0) return null;
+              const productName = getProductName(productId);
+              const productUnit = getProductUnit(productId);
+              
+              return (
+                <div key={productId} style={{ marginBottom: '1.5rem' }}>
+                  {/* Header del producto */}
+                  <div style={{ 
+                    background: 'var(--primary)', 
+                    color: 'var(--white)', 
+                    padding: '0.5rem 0.75rem',
+                    borderRadius: 'var(--radius) var(--radius) 0 0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <strong>{productName}</strong>
+                    <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>
+                      {productLots.length} lote{productLots.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>Código</th>
+                        <th>Fecha Ingreso</th>
+                        <th>Vencimiento</th>
+                        <th>Proveedor</th>
+                        <th>Stock</th>
+                        <th>Contenedor</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productLots.map(lot => {
+                        const summary = calculateContainers(lot);
+                        const expanded = expandedLots.has(lot.id);
+                        
+                        return (
+                          <React.Fragment key={lot.id}>
+                            <tr>
+                              <td>
+                                {lot.lotCode ? (
+                                  <span className="badge badge-info">{lot.lotCode}</span>
+                                ) : (
+                                  <span style={{ color: 'var(--gray-400)' }}>-</span>
+                                )}
+                              </td>
+                              <td>{formatDate(lot.entryDate)}</td>
+                              <td>
+                                {lot.expiryDate ? formatDate(lot.expiryDate) : '-'}
+                                {isExpired(lot.expiryDate) && (
+                                  <span className="badge badge-danger" style={{ marginLeft: '0.5rem' }}>
+                                    Vencido
+                                  </span>
+                                )}
+                              </td>
+                              <td>{lot.supplier || '-'}</td>
+                              <td>
+                                {lot.containerCapacity 
+                                  ? `${summary.remainingStock.toFixed(1)} / ${lot.initialStock} ${productUnit}`
+                                  : `${lot.initialStock} ${productUnit}`
+                                }
+                              </td>
+                              <td>
+                                {lot.containerCapacity && (
+                                  <>
+                                    <span 
+                                      className="btn btn-secondary btn-sm" 
+                                      onClick={() => toggleExpand(lot.id)}
+                                      style={{ cursor: 'pointer', marginRight: '0.5rem' }}
+                                    >
+                                      {expanded ? '▼' : '▶'} {(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{productUnit}
+                                    </span>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                                      ({summary.qtyFull}L + {summary.qtyEmpty}V)
+                                    </span>
+                                  </>
+                                )}
+                              </td>
+                              <td>
+                                {isExpired(lot.expiryDate) ? (
+                                  <span className="badge badge-danger">Vencido</span>
+                                ) : isEmpty(lot) ? (
+                                  <span className="badge badge-warning">Vacío</span>
+                                ) : (
+                                  <span className="badge badge-primary">Activo</span>
+                                )}
+                              </td>
+                              <td>
+                                <button 
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => openEditModal(lot)}
+                                  style={{ marginRight: '0.5rem' }}
+                                >
+                                  Editar
+                                </button>
+                                <button 
+                                  className="btn btn-danger btn-sm"
+                                  onClick={() => handleDelete(lot.id)}
+                                >
+                                  Eliminar
+                                </button>
+                              </td>
+                            </tr>
+                            
+                            {/* Fila expandida de contenedores */}
+                            {expanded && lot.containerCapacity && (
+                              <tr>
+                                <td colSpan={8} style={{ padding: '0.75rem', background: 'var(--gray-100)' }}>
+                                  <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                                    {summary.qtyFull > 0 && (
+                                      <div style={{ padding: '0.5rem', background: 'var(--success-light)', borderRadius: 'var(--radius)' }}>
+                                        ✓ Llenos: {summary.qtyFull} ({lot.containerCapacity}{productUnit} c/u)
+                                      </div>
+                                    )}
+                                    {summary.remainingQuantity > 0 && (
+                                      <div style={{ padding: '0.5rem', background: 'var(--warning-light)', borderRadius: 'var(--radius)' }}>
+                                        ⚠ En uso: {summary.remainingQuantity.toFixed(1)}{productUnit}
+                                        <div style={{ width: `${(summary.remainingQuantity / (lot.containerCapacity || 1)) * 100}px`, height: '4px', background: 'var(--warning)', marginTop: '4px' }}></div>
+                                      </div>
+                                    )}
+                                    {summary.qtyEmpty > 0 && (
+                                      <div style={{ padding: '0.5rem', background: 'var(--gray-200)', borderRadius: 'var(--radius)' }}>
+                                        ✕ Vacíos: {summary.qtyEmpty}
+                                      </div>
+                                    )}
+                                    {summary.remainingStock <= 0 && summary.qtyFull === 0 && summary.remainingQuantity === 0 && (
+                                      <div style={{ padding: '0.5rem', background: 'var(--danger-light)', borderRadius: 'var(--radius)' }}>
+                                        ⚠ Stock agotado
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
