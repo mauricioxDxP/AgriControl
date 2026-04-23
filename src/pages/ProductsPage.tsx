@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
 import { Product, BaseUnit, DoseType, DoseUnit, Lot } from '../types';
 import { settingsService } from '../services';
+import { searchProductsFlowise } from '../services/FlowiseService';
 import CameraCapture from '../components/CameraCapture';
 
 interface SettingItem {
@@ -44,8 +45,9 @@ export default function ProductsPage() {
   // Buscador
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Agrupar por nombre genérico
-  const [groupByGeneric, setGroupByGeneric] = useState(false);
+  // Flowise states (solo para modal)
+  const [flowiseInfo, setFlowiseInfo] = useState<string | null>(null);
+  const [flowiseLoading, setFlowiseLoading] = useState(false);
 
   // Helper para nombre de tipo
   const getTypeName = (product: Product) => {
@@ -106,15 +108,16 @@ export default function ProductsPage() {
   // Filtrar productos por tipos seleccionados y búsqueda
   const filteredProducts = useMemo(() => {
     let result = products;
-    
+
     // Apply type filter
     if (filterTypes.length > 0) {
       result = result.filter(product => filterTypes.includes(getTypeName(product)));
     }
-    
-    // Apply search filter (always search all fields)
+
+    // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
+      // Busqueda local simple
       const searchAllFields = ['name', 'genericName', 'type', 'state'];
       result = result.filter(product => {
         return searchAllFields.some(field => {
@@ -133,11 +136,12 @@ export default function ProductsPage() {
         });
       });
     }
-    
-    return result;
+
+return result;
   }, [products, filterTypes, searchQuery]);
 
   // Agrupar productos filtrados: tipo → nombre genérico
+  const [groupByGeneric, setGroupByGeneric] = useState(false);
   const groupedProducts = useMemo(() => {
     const byType = new Map<string, Map<string, Product[]>>();
     filteredProducts.forEach(product => {
@@ -195,6 +199,7 @@ export default function ProductsPage() {
       concentration: ''
     });
     setEditingProduct(null);
+    setFlowiseInfo(null);
   };
 
   const openModal = (product?: Product) => {
@@ -216,7 +221,45 @@ export default function ProductsPage() {
     } else {
       resetForm();
     }
+    setFlowiseInfo(null);
     setShowModal(true);
+  };
+
+  // Consultar info del producto via Flowise (cuando se ingresa el nombre)
+  const handleAskLLM = async () => {
+    if (!formData.name || formData.name.trim().length < 2) {
+      alert('Escribí el nombre del producto primero');
+      return;
+    }
+
+    setFlowiseLoading(true);
+    try {
+      // Buscar info via Flowise
+      await handleFlowiseSearch(formData.name);
+    } catch (error) {
+      console.error('Error consultando Flowise:', error);
+      setFlowiseInfo('Error al consultar');
+    }
+    setFlowiseLoading(false);
+  };
+
+  // Buscar info via Flowise (para el modal)
+  const handleFlowiseSearch = async (query: string) => {
+    if (!query.trim()) {
+      setFlowiseInfo(null);
+      return;
+    }
+
+    setFlowiseLoading(true);
+    try {
+      const results = await searchProductsFlowise(query);
+      // Tomar el primer resultado como info
+      setFlowiseInfo(results[0] || null);
+    } catch (error) {
+      console.error('Error en búsqueda Flowise:', error);
+      setFlowiseInfo(null);
+    }
+    setFlowiseLoading(false);
   };
 
   // Open modal with pre-filled generic name
@@ -278,6 +321,7 @@ export default function ProductsPage() {
     setShowModal(false);
     setShowCamera(false);
     setIsCameraMinimized(false);
+    setFlowiseInfo(null);
     resetForm();
   };
 
@@ -327,18 +371,15 @@ export default function ProductsPage() {
 
       {/* Buscador */}
       <div className="search-bar mb-2">
-        <input
-          type="text"
-          className="form-input"
-          placeholder="Buscar en todos los campos..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
-        {searchQuery && (
-          <button className="btn btn-secondary btn-sm" onClick={() => setSearchQuery('')}>
-            ✕
-          </button>
-        )}
+        <div style={{ position: 'relative' }}>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Buscar en todos los campos..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Filtro de agrupamiento y tipos (multiselección) */}
@@ -671,12 +712,7 @@ export default function ProductsPage() {
 
       {/* Modal de Producto */}
       {showModal && (
-        <div className="modal-overlay" onClick={(e) => {
-          e.stopPropagation();
-          setShowModal(false);
-          setShowCamera(false);
-          setIsCameraMinimized(false);
-        }}>
+        <div className="modal-overlay">
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <h3 className="modal-title">
@@ -697,13 +733,25 @@ export default function ProductsPage() {
               <div className="modal-body">
                 <div className="form-group">
                   <label className="form-label">Nombre *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.name}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-info"
+                      onClick={handleAskLLM}
+                      disabled={flowiseLoading || !formData.name.trim()}
+                      title="Buscar info del producto con IA"
+                    >
+                      {flowiseLoading ? '...' : '🤖'}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -716,6 +764,32 @@ export default function ProductsPage() {
                     placeholder="Ej: Glifosato, 2,4-D, etc."
                   />
                 </div>
+
+                {(flowiseInfo || flowiseLoading) && (
+                  <div className="form-group">
+                    <div 
+                      style={{ 
+                        padding: '0.75rem', 
+                        background: 'var(--gray-50)', 
+                        borderRadius: '4px',
+                        border: '1px solid var(--gray-200)',
+                        fontSize: '0.875rem'
+                      }}
+                    >
+                      {flowiseLoading ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span className="spinner" style={{ width: '14px', height: '14px' }}></span>
+                          Consultando info...
+                        </div>
+                      ) : flowiseInfo ? (
+                        <div>
+                          <strong>🤖 Info:</strong>
+                          <p style={{ margin: '0.5rem 0 0 0', whiteSpace: 'pre-wrap' }}>{flowiseInfo}</p>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
 
                 <div className="form-group">
                   <button
