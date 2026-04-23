@@ -29,6 +29,7 @@ export interface ContainerTypeModel {
 export interface Product {
   id: string;
   name: string;
+  productCode?: string | null; // Código interno del producto
   genericName?: string | null; // Nombre genérico del producto (opcional)
   typeId: string;
   stateId: string;

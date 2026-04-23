@@ -47,6 +47,7 @@ export function useProducts() {
     const newProduct: Product = {
       id: uuidv4(),
       name: data.name || '',
+      productCode: data.productCode || '',
       genericName: data.genericName,
       typeId: data.typeId || '',
       stateId: data.stateId || '',

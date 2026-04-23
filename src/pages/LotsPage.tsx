@@ -1,8 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useLots, useProducts, useMovements } from '../hooks/useData';
 import { ContainerType, Lot } from '../types';
+import { settingsService } from '../services';
 
 type FilterType = 'all' | 'active' | 'empty' | 'expired';
+
+interface SettingItem {
+  id: string;
+  name: string;
+}
 
 interface ContainerSummary {
   qtyFull: number;
@@ -21,6 +27,13 @@ export default function LotsPage() {
   const [editingLot, setEditingLot] = useState<Lot | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [expandedLots, setExpandedLots] = useState<Set<string>>(new Set());
+  
+  // Filtro por tipo de producto
+  const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  
+  // Buscador
+  const [searchQuery, setSearchQuery] = useState('');
   const [formData, setFormData] = useState({
     productId: '',
     entryDate: new Date().toISOString().split('T')[0],
@@ -133,6 +146,26 @@ export default function LotsPage() {
     return { qtyFull, qtyEmpty, remainingQuantity, remainingStock, consumed };
   };
 
+  // Get product name helper
+  const getProductName = (productId: string) => {
+    return products.find(p => p.id === productId)?.name || 'Sin producto';
+  };
+
+  // Get product code helper
+  const getProductCode = (productId: string) => {
+    return (products.find(p => p.id === productId) as any)?.productCode || null;
+  };
+
+  // Get product type helper
+  const getProductType = (productId: string) => {
+    return (products.find(p => p.id === productId) as any)?.type?.name || products.find(p => p.id === productId)?.type || '-';
+  };
+
+  // Get product base unit helper
+  const getProductUnit = (productId: string) => {
+    return products.find(p => p.id === productId)?.baseUnit || 'L';
+  };
+
   // Group lots by product
   const lotsByProduct = useMemo(() => {
     const grouped: Record<string, Lot[]> = {};
@@ -155,7 +188,29 @@ export default function LotsPage() {
   const getFilteredLotsByProduct = useMemo(() => {
     const filtered: Record<string, Lot[]> = {};
     Object.keys(lotsByProduct).forEach(productId => {
+      const product = products.find(p => p.id === productId);
+      const productType = (product as any)?.type?.name || product?.type || '';
+      
+      // Filtro por tipo de producto
+      if (filterTypes.length > 0 && !filterTypes.includes(productType)) {
+        return;
+      }
+      
+      // Filtro por texto (busca en nombre, código, proveedor, lotCode)
+      const query = searchQuery.toLowerCase().trim();
+      
       filtered[productId] = lotsByProduct[productId].filter(lot => {
+        const productName = getProductName(productId).toLowerCase();
+        const productCode = (product as any)?.productCode?.toLowerCase() || '';
+        const supplier = lot.supplier?.toLowerCase() || '';
+        const lotCode = lot.lotCode?.toLowerCase() || '';
+        
+        // Si hay búsqueda, filtrar por texto
+        if (query && !productName.includes(query) && !productCode.includes(query) && 
+            !supplier.includes(query) && !lotCode.includes(query)) {
+          return false;
+        }
+        
         const summary = calculateContainers(lot);
         const expired = isExpired(lot.expiryDate);
         
@@ -172,17 +227,7 @@ export default function LotsPage() {
       });
     });
     return filtered;
-  }, [lotsByProduct, filter, movements]);
-
-  // Get product name helper
-  const getProductName = (productId: string) => {
-    return products.find(p => p.id === productId)?.name || 'Sin producto';
-  };
-
-  // Get product base unit helper
-  const getProductUnit = (productId: string) => {
-    return products.find(p => p.id === productId)?.baseUnit || 'L';
-  };
+  }, [lotsByProduct, filter, filterTypes, searchQuery, products, movements]);
 
   // Toggle expanded lot
   const toggleExpand = (lotId: string) => {
@@ -206,6 +251,19 @@ export default function LotsPage() {
   // Get selected product's unit
   const selectedProduct = products.find(p => p.id === formData.productId);
 
+  // Cargar tipos de producto
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const types = await settingsService.getProductTypes();
+        setProductTypes(types);
+      } catch (error) {
+        console.error('Error loading product types:', error);
+      }
+    };
+    loadTypes();
+  }, []);
+
   if (loading) {
     return (
       <div className="loading">
@@ -223,19 +281,67 @@ export default function LotsPage() {
         </button>
       </div>
 
-      {/* Filtro */}
+      {/* Filtros */}
       <div className="mb-2">
-        <select 
-          className="form-select" 
-          value={filter} 
-          onChange={e => setFilter(e.target.value as FilterType)}
-          style={{ maxWidth: '200px' }}
-        >
-          <option value="all">Todos</option>
-          <option value="active">Activos</option>
-          <option value="empty">Vacíos</option>
-          <option value="expired">Vencidos</option>
-        </select>
+        {/* Buscador */}
+        <div className="search-bar">
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Buscar por producto, código, lote o proveedor..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setSearchQuery('')}>
+              ✕
+            </button>
+          )}
+        </div>
+        
+        {/* Filtro por tipo */}
+        <div className="filter-bar mb-2">
+          <select 
+            className="form-select" 
+            value={filter} 
+            onChange={e => setFilter(e.target.value as FilterType)}
+            style={{ maxWidth: '150px' }}
+          >
+            <option value="all">Todos</option>
+            <option value="active">Activos</option>
+            <option value="empty">Vacíos</option>
+            <option value="expired">Vencidos</option>
+          </select>
+          
+          <div className="filter-chips">
+            {productTypes.map(type => {
+              const isSelected = filterTypes.includes(type.name);
+              return (
+                <button
+                  key={type.id}
+                  className={`chip ${isSelected ? 'chip-active' : ''}`}
+                  onClick={() => {
+                    if (isSelected) {
+                      setFilterTypes(filterTypes.filter(t => t !== type.name));
+                    } else {
+                      setFilterTypes([...filterTypes, type.name]);
+                    }
+                  }}
+                >
+                  {isSelected && '✓ '}{type.name}
+                </button>
+              );
+            })}
+          </div>
+          {filterTypes.length > 0 && (
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilterTypes([])}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {products.length === 0 && (
@@ -279,7 +385,12 @@ export default function LotsPage() {
                     justifyContent: 'space-between',
                     alignItems: 'center'
                   }}>
-                    <strong>{productName}</strong>
+                    <div>
+                      <strong>{productName}</strong>
+                      <span style={{ opacity: 0.8, fontSize: '0.85rem', marginLeft: '0.5rem' }}>
+                        ({getProductType(productId)})
+                      </span>
+                    </div>
                     <span style={{ opacity: 0.8, fontSize: '0.9rem' }}>
                       {productLots.length} lote{productLots.length !== 1 ? 's' : ''}
                     </span>
@@ -308,7 +419,9 @@ export default function LotsPage() {
                           {lot.lotCode && (
                             <div className="card-mobile-section">
                               <span className="card-mobile-label">Código:</span>
-                              <span className="badge badge-info">{lot.lotCode}</span>
+                              <span className="badge badge-info">
+                                {getProductCode(lot.productId)}-{lot.lotCode}
+                              </span>
                             </div>
                           )}
                           
@@ -522,7 +635,9 @@ export default function LotsPage() {
                             <tr>
                               <td>
                                 {lot.lotCode ? (
-                                  <span className="badge badge-info">{lot.lotCode}</span>
+                                  <span className="badge badge-info">
+                                    {getProductCode(lot.productId)}-{lot.lotCode}
+                                  </span>
                                 ) : (
                                   <span style={{ color: 'var(--gray-400)' }}>-</span>
                                 )}

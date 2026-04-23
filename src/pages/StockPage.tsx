@@ -1,5 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
+import { settingsService } from '../services';
+
+interface SettingItem {
+  id: string;
+  name: string;
+}
 
 export default function StockPage() {
   const productsHook = useProducts();
@@ -11,6 +17,24 @@ export default function StockPage() {
   const movements = movementsHook.movements;
   
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  
+  // Filtros
+  const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // Cargar tipos de producto
+  useEffect(() => {
+    const loadTypes = async () => {
+      try {
+        const types = await settingsService.getProductTypes();
+        setProductTypes(types);
+      } catch (error) {
+        console.error('Error loading product types:', error);
+      }
+    };
+    loadTypes();
+  }, []);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const productLots = lots.filter(l => l.productId === selectedProductId);
@@ -58,9 +82,36 @@ export default function StockPage() {
     };
   }, [selectedProductId, productMovements, productLots]);
 
-  // Stock por producto (todos)
-  const stockByProduct = useMemo(() => {
-    return products.map(product => {
+interface StockItem {
+  product: any;
+  entradas: number;
+  salidas: number;
+  stockActual: number;
+  stockLotes: number;
+  lotesCount: number;
+}
+
+// Stock por producto (todos) - con filtros
+const stockByProduct = useMemo((): StockItem[] => {
+    const result: StockItem[] = [];
+    
+    products.forEach(product => {
+      const productType = (product as any)?.type?.name || product.type || '';
+      
+      // Filtro por tipo
+      if (filterTypes.length > 0 && !filterTypes.includes(productType)) {
+        return;
+      }
+      
+      // Filtro por búsqueda
+      const query = searchQuery.toLowerCase().trim();
+      const productName = product.name.toLowerCase();
+      const productCode = (product as any)?.productCode?.toLowerCase() || '';
+      
+      if (query && !productName.includes(query) && !productCode.includes(query)) {
+        return;
+      }
+      
       const productMovementList = movements.filter(m => m.productId === product.id);
       const productLotsList = lots.filter(l => l.productId === product.id);
 
@@ -75,19 +126,21 @@ export default function StockPage() {
         }
       });
 
-      const stock = entradas - salidas;
-      const stockEnLotes = productLotsList.reduce((sum, l) => sum + l.initialStock, 0);
+      const stockActual = entradas - salidas;
+      const stockLotes = productLotsList.reduce((sum, l) => sum + l.initialStock, 0);
 
-      return {
+      result.push({
         product,
         entradas,
         salidas,
-        stock,
-        stockEnLotes,
+        stockActual,
+        stockLotes,
         lotesCount: productLotsList.length
-      };
-    }).filter(s => s.stockEnLotes > 0 || s.stock > 0);
-  }, [products, movements, lots]);
+      });
+    });
+    
+    return result;
+  }, [products, movements, lots, filterTypes, searchQuery]);
 
   const formatNumber = (num: number) => num.toFixed(2);
 
@@ -102,6 +155,55 @@ export default function StockPage() {
           </div>
         </div>
       )}
+
+      {/* Filtros */}
+      <div className="mb-2">
+        <div className="search-bar">
+          <input
+            type="text"
+            className="form-input"
+            placeholder="Buscar por producto o código..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button className="btn btn-secondary btn-sm" onClick={() => setSearchQuery('')}>
+              ✕
+            </button>
+          )}
+        </div>
+        
+        <div className="filter-bar mb-2">
+          <div className="filter-chips">
+            {productTypes.map(type => {
+              const isSelected = filterTypes.includes(type.name);
+              return (
+                <button
+                  key={type.id}
+                  className={`chip ${isSelected ? 'chip-active' : ''}`}
+                  onClick={() => {
+                    if (isSelected) {
+                      setFilterTypes(filterTypes.filter(t => t !== type.name));
+                    } else {
+                      setFilterTypes([...filterTypes, type.name]);
+                    }
+                  }}
+                >
+                  {isSelected && '✓ '}{type.name}
+                </button>
+              );
+            })}
+          </div>
+          {filterTypes.length > 0 && (
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => setFilterTypes([])}
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* Stock por producto */}
       <div className="card">
@@ -140,9 +242,9 @@ export default function StockPage() {
                       <div>
                         <span className="card-mobile-label">Stock:</span>
                         <strong style={{ 
-                          color: item.stock < 0 ? 'var(--danger)' : item.stock === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                          color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
                         }}>
-                          {formatNumber(item.stock)} {item.product.baseUnit}
+                          {formatNumber(item.stockActual)} {item.product.baseUnit}
                         </strong>
                       </div>
                     </div>
@@ -207,9 +309,9 @@ export default function StockPage() {
                     <td className="hide-mobile" style={{ color: 'var(--danger)' }}>{formatNumber(item.salidas)}</td>
                     <td>
                       <strong style={{ 
-                        color: item.stock < 0 ? 'var(--danger)' : item.stock === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                        color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
                       }}>
-                        {formatNumber(item.stock)}
+                        {formatNumber(item.stockActual)}
                       </strong>
                     </td>
                     <td className="hide-mobile">

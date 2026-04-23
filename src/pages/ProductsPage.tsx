@@ -27,6 +27,7 @@ export default function ProductsPage() {
   
   const [formData, setFormData] = useState({
     name: '',
+    productCode: '',
     genericName: '',
     typeId: '',
     stateId: '',
@@ -187,6 +188,7 @@ return result;
   const resetForm = () => {
     setFormData({
       name: '',
+      productCode: '',
       genericName: '',
       typeId: productTypes[0]?.id || '',
       stateId: productStates[0]?.id || '',
@@ -207,6 +209,7 @@ return result;
       setEditingProduct(product);
       setFormData({
         name: product.name,
+        productCode: (product as any).productCode || '',
         genericName: (product as any).genericName || '',
         typeId: (product as any).type?.id || product.typeId || '',
         stateId: (product as any).state?.id || product.stateId || '',
@@ -267,6 +270,7 @@ return result;
     setEditingProduct(null);
     setFormData({
       name: '',
+      productCode: '',
       genericName: genericName,
       typeId: typeId || productTypes[0]?.id || '',
       stateId: productStates[0]?.id || '',
@@ -293,7 +297,8 @@ return result;
     
     const data = {
       name: formData.name,
-      genericName: formData.genericName.trim() ? formData.genericName : null,
+      productCode: formData.productCode.trim() || null,
+      genericName: formData.genericName.trim() || null,
       typeId: formData.typeId,
       stateId: formData.stateId,
       baseUnit: formData.baseUnit,
@@ -304,6 +309,8 @@ return result;
       concentrationPerLiter: toNumber(formData.concentrationPerLiter),
       concentration: toNumber(formData.concentration)
     };
+    
+    console.log('[ProductsPage] create data:', JSON.stringify(data));
     try{
 
       if (editingProduct) {
@@ -473,13 +480,22 @@ return result;
                         {list.map(product => (
                           <div key={product.id} className="card-mobile">
                             <div className="card-mobile-header">
-                              <span className="card-mobile-date">{(product as any).genericName ? '- ' : ''}{product.name}</span>
+                              <span className="card-mobile-date">
+                                {product.name}
+                                {((product as any).genericName ? ` - ${(product as any).genericName}` : '')}
+                              </span>
                               <span className={`card-mobile-badge ${getTypeBadge(product)}`}>
                                 {getTypeName(product)}
                               </span>
                             </div>
                             
                             <div className="card-mobile-content">
+                              {(product as any).productCode && (
+                                <div className="card-mobile-row">
+                                  <span className="card-mobile-label">Código:</span>
+                                  <span>{(product as any).productCode}</span>
+                                </div>
+                              )}
                               <div className="card-mobile-row">
                                 <div>
                                   <span className="card-mobile-label">Estado:</span>
@@ -589,6 +605,7 @@ return result;
             <table className="table">
               <thead>
                 <tr>
+                  <th>Código</th>
                   <th>Nombre</th>
                   <th>Tipo</th>
                   <th>Estado</th>
@@ -638,7 +655,12 @@ return result;
                               return (
                                 <React.Fragment key={product.id}>
                                   <tr>
-                                    <td><strong>{product.name}</strong></td>
+                                    <td>
+                                      {(product as any).productCode || '-'}
+                                    </td>
+                                    <td>
+                                      <strong>{product.name}</strong>
+                                    </td>
                                     <td><span className={`badge ${getTypeBadge(product)}`}>{getTypeName(product)}</span></td>
                                     <td>{getStateName(product)}</td>
                                     <td>{product.baseUnit}</td>
@@ -752,6 +774,17 @@ return result;
                       {flowiseLoading ? '...' : '🤖'}
                     </button>
                   </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Código</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    value={formData.productCode}
+                    onChange={e => setFormData({ ...formData, productCode: e.target.value })}
+                    placeholder="Código interno del producto"
+                  />
                 </div>
 
                 <div className="form-group">
