@@ -157,11 +157,6 @@ export default function LotsPage() {
     return (products.find(p => p.id === productId) as any)?.productCode || null;
   };
 
-  // Get product type helper
-  const getProductType = (productId: string) => {
-    return (products.find(p => p.id === productId) as any)?.type?.name || products.find(p => p.id === productId)?.type || 'OTRO';
-  };
-
   // Get product base unit helper
   const getProductUnit = (productId: string) => {
     const baseUnit = products.find(p => p.id === productId)?.baseUnit || 'L';
@@ -233,11 +228,6 @@ export default function LotsPage() {
       const typeName = productType || 'OTRO';
       if (!byType.has(typeName)) byType.set(typeName, new Map());
       byType.get(typeName)!.set(productId, filteredForProduct);
-    });
-    
-    // Sort product IDs within each type
-    byType.forEach(byProduct => {
-      // Already sorted by entryDate descending from lotsByProduct
     });
     
     return { byType, sortedTypes: Array.from(byType.keys()).sort() };

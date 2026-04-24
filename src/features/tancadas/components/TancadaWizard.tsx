@@ -221,11 +221,6 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     });
   };
 
-  const openProductSearch = () => {
-    setProductSearchOpen(true);
-    setProductSearchQuery('');
-  };
-
   // Agregar un nuevo producto - mostrar formulario completo
   const startAddProduct = () => {
     setWizardState({
@@ -409,8 +404,6 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     if (wizardState.step === 'products-list') return wizardState.products.length > 0;
     return true;
   };
-
-  const getSelectedProduct = () => products.find(p => p.id === wizardState.selectedProductId);
 
   return (
     <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
@@ -608,7 +601,6 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                     <div className="form-group">
                       <label className="form-label">Lotes a utilizar</label>
                       {wizardState.currentLots.map((lotEntry, idx) => {
-                        const lot = productLots.find(l => l.id === lotEntry.lotId);
                         return (
                           <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                             <select 

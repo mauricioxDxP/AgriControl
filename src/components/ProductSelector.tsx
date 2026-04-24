@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Product } from '../../types';
+import { Product } from '../types';
 
 interface ProductSelectorProps {
   products: Product[];

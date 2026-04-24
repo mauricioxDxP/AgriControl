@@ -586,7 +586,6 @@ export default function ApplicationWizard({ isOpen, onClose, onSubmit, products,
                     <div className="form-group">
                       <label className="form-label">Lotes a utilizar</label>
                       {wizardState.currentLots.map((lotEntry, idx) => {
-                        const lot = lots.find(l => l.id === lotEntry.lotId);
                         return (
                           <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
                             <select 
