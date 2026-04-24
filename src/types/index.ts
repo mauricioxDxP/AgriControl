@@ -1,4 +1,4 @@
-// Tipos para AgroControl
+// Types for AgroControl
 
 export type ProductType = 'SEMILLA' | 'FERTILIZANTE' | 'PESTICIDA' | 'HERBICIDA' | 'FUNGICIDA' | 'INSECTICIDA' | 'OTRO';
 export type ProductState = 'LIQUIDO' | 'SOLIDO' | 'POLVO' | 'GRANULADO' | 'GEL';
@@ -26,11 +26,52 @@ export interface ContainerTypeModel {
   name: string;
 }
 
+// Terrain - Represents a piece of land containing multiple Fields
+export interface Terrain {
+  id: string;
+  name: string;
+  location?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+  fields?: Field[];
+}
+
+// Field - A parcel within a Terrain
+export interface Field {
+  id: string;
+  name: string;
+  area: number;
+  terrainId: string;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+  terrain?: Terrain;
+  plantings?: Planting[];
+}
+
+// Planting - A crop record in a Field
+export interface Planting {
+  id: string;
+  fieldId: string;
+  productId: string;
+  startDate: string;
+  endDate?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+  product?: Product;
+  field?: Field;
+}
+
 export interface Product {
   id: string;
   name: string;
-  productCode?: string | null; // Código interno del producto
-  genericName?: string | null; // Nombre genérico del producto (opcional)
+  productCode?: string | null;
+  genericName?: string | null;
   typeId: string;
   stateId: string;
   type?: ProductTypeModel;
@@ -63,7 +104,8 @@ export interface Lot {
   synced: boolean;
 }
 
-export interface Field {
+// Legacy Field interface for backwards compatibility
+export interface FieldLegacy {
   id: string;
   name: string;
   area: number;
@@ -77,7 +119,7 @@ export interface Field {
   synced: boolean;
 }
 
-// Configuración global: tipos de producto "plantados" (filtro para campos)
+// Configuration for planted products (filter for fields)
 export interface PlantedProductType {
   id: string;
   productTypeId: string;
@@ -98,7 +140,7 @@ export interface ApplicationLot {
 export interface Application {
   id: string;
   fieldId: string;
-  field?: Field;
+  field?: FieldLegacy;
   type: ApplicationType;
   date: string;
   waterAmount?: number;
@@ -110,7 +152,7 @@ export interface Application {
   synced: boolean;
 }
 
-// Productos utilizados en una aplicación
+// Products used in an application
 export interface ApplicationProduct {
   id: string;
   applicationId: string;
@@ -119,7 +161,7 @@ export interface ApplicationProduct {
   dosePerHectare?: number;
   concentration?: number;
   quantityUsed: number;
-  lotsUsed?: string; // JSON array of lots used: [{lotId, quantityUsed}]
+  lotsUsed?: string;
   createdAt: string;
   synced: boolean;
 }
@@ -141,13 +183,13 @@ export interface Movement {
 export interface SyncData {
   products?: Product[];
   lots?: Lot[];
-  fields?: Field[];
+  fields?: FieldLegacy[];
   applications?: Application[];
   movements?: Movement[];
   applicationLots?: ApplicationLot[];
 }
 
-// Cálculos de dosificación
+// Dosage calculations
 export interface DosageCalculation {
   fieldArea: number;
   dosePerHectare: number;
@@ -163,7 +205,7 @@ export interface NavItem {
   icon: string;
 }
 
-// Tipos para creación
+// Creation types
 export interface CreateTancadaInput {
   date?: string;
   tankCapacity: number;
@@ -195,8 +237,8 @@ export interface CreateApplicationInput {
   lots?: { lotId: string; quantityUsed: number }[];
 }
 
-// Contenedor (bidón, saco, bolsa, tambor)
-// @deprecated - Usar LotLine en su lugar
+// Container (bidón, saco, bolsa, tambor)
+// @deprecated - Use LotLine instead
 export interface Container {
   id: string;
   lotId: string;
@@ -209,10 +251,10 @@ export interface Container {
   createdAt: string;
   updatedAt: string;
   synced: boolean;
-  currentQuantity?: number; // Calculated from movements
+  currentQuantity?: number;
 }
 
-// Movimiento de contenedor (histórico)
+// Container movement (historical)
 export interface ContainerMovement {
   id: string;
   containerId: string;
@@ -224,7 +266,7 @@ export interface ContainerMovement {
   container?: Container & { lot?: Lot & { product?: Product } };
 }
 
-// Tancada (mezcla en tanque para fumigar)
+// Tancada (mix in tank for fumigation)
 export interface Tancada {
   id: string;
   date: string;
@@ -238,7 +280,7 @@ export interface Tancada {
   tancadaFields?: TancadaField[];
 }
 
-// Productos en una tancada (mezcla)
+// Products in a tancada (mix)
 export interface TancadaProduct {
   id: string;
   tancadaId: string;
@@ -246,25 +288,25 @@ export interface TancadaProduct {
   product?: Product;
   concentration?: number;
   quantity: number;
-  lotsUsed?: string; // JSON array of lots used: [{lotId, quantityUsed}]
-  lotsData?: any[]; // Datos de lotes traidos del backend
+  lotsUsed?: string;
+  lotsData?: any[];
   createdAt: string;
   synced: boolean;
 }
 
-// Campos tratados en una tancada
+// Fields treated in a tancada
 export interface TancadaField {
   id: string;
   tancadaId: string;
   fieldId: string;
-  field?: Field;
+  field?: FieldLegacy;
   hectaresTreated: number;
   productUsed: number;
   createdAt: string;
   synced: boolean;
 }
 
-// Tanque fijo (para usar en tancadas)
+// Fixed tank (for use in tancadas)
 export interface Tank {
   id: string;
   name: string;

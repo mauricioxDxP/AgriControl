@@ -4,26 +4,46 @@ import { dbHelpers } from '../../../db/database';
 import { fieldsService } from '../services';
 import { Field } from '../../../types';
 
-export function useFields() {
+export function useFields(terrainId?: string) {
   const [fields, setFields] = useState<Field[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const isOnline = navigator.onLine;
 
   const loadFields = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    
     try {
       if (isOnline) {
-        const data = await fieldsService.getAll();
+        const data = terrainId 
+          ? await fieldsService.getByTerrain(terrainId)
+          : await fieldsService.getAll();
         setFields(data);
+        // Save to IndexedDB for offline access
+        await dbHelpers.clearFields();
+        for (const field of data) {
+          await dbHelpers.addField(field);
+        }
       } else {
-        setFields(await dbHelpers.getAllFields());
+        const localData = terrainId 
+          ? await dbHelpers.getFieldsByTerrain(terrainId)
+          : await dbHelpers.getAllFields();
+        setFields(localData);
       }
-    } catch {
-      setFields(await dbHelpers.getAllFields());
+    } catch (err) {
+      // Try to load from IndexedDB on error
+      const localData = terrainId 
+        ? await dbHelpers.getFieldsByTerrain(terrainId)
+        : await dbHelpers.getAllFields();
+      setFields(localData);
+      if (localData.length === 0) {
+        setError('No connection and no local data');
+      }
     } finally {
       setLoading(false);
     }
-  }, [isOnline]);
+  }, [isOnline, terrainId]);
 
   useEffect(() => {
     loadFields();
@@ -34,10 +54,7 @@ export function useFields() {
       id: uuidv4(),
       name: data.name || '',
       area: data.area || 0,
-      location: data.location,
-      latitude: data.latitude ?? null,
-      longitude: data.longitude ?? null,
-      productId: data.productId ?? null,
+      terrainId: data.terrainId || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false
@@ -49,7 +66,8 @@ export function useFields() {
         await dbHelpers.addField(created);
         setFields(prev => [created, ...prev]);
         return created;
-      } catch {
+      } catch (err) {
+        // Save offline
         await dbHelpers.addField(newField);
         setFields(prev => [newField, ...prev]);
         return newField;
@@ -70,7 +88,7 @@ export function useFields() {
         await dbHelpers.updateField(id, result);
         setFields(prev => prev.map(f => f.id === id ? result : f));
         return result;
-      } catch {
+      } catch (err) {
         await dbHelpers.updateField(id, updated);
         setFields(prev => prev.map(f => f.id === id ? { ...f, ...updated } : f));
         return { ...fields.find(f => f.id === id), ...updated };
@@ -83,14 +101,20 @@ export function useFields() {
   };
 
   const deleteField = async (id: string) => {
-    if (isOnline) {
-      try {
+    try {
+      if (isOnline) {
         await fieldsService.delete(id);
-      } catch {}
+      }
+      await dbHelpers.deleteField(id);
+      setFields(prev => prev.filter(f => f.id !== id));
+    } catch (err) {
+      console.error('Error deleting field:', err);
+      throw err;
     }
-    await dbHelpers.deleteField(id);
-    setFields(prev => prev.filter(f => f.id !== id));
   };
 
-  return { fields, loading, addField, updateField, deleteField, refresh: loadFields };
+  return { fields, loading, error, addField, updateField, deleteField, refresh: loadFields };
 }
+
+// Alias for backwards compatibility
+export const useCampos = useFields;

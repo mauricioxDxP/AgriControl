@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { dbHelpers } from '../db/database';
 import { syncService } from '../services';
+import { Field } from '../types';
 
-// Re-export desde features para compatibilidad hacia atrás
+// Re-export from features for backwards compatibility
 export { useProducts } from '../features/products/hooks';
 export { useLots } from '../features/lots/hooks';
 export { useFields } from '../features/fields/hooks';
@@ -10,8 +11,16 @@ export { useApplications } from '../features/applications/hooks';
 export { useMovements } from '../features/movements/hooks';
 export { useTancadas } from '../features/tancadas/hooks';
 export { useTanks } from '../features/tanks/hooks';
+export { useTerrains } from '../features/terrains/hooks';
+export { usePlantings } from '../features/plantings/hooks';
+export { usePlantedProductTypes } from '../features/settings/hooks';
 
-// useOnlineStatus - helper simple para estado de conexión
+// Aliases for backwards compatibility
+export { useCampos } from '../features/fields/hooks';
+export { useSiembra, useSiembras } from '../features/plantings/hooks';
+export { useTerrenos } from '../features/terrains/hooks';
+
+// useOnlineStatus - simple helper for connection status
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
@@ -31,7 +40,7 @@ export function useOnlineStatus() {
   return isOnline;
 }
 
-// Hook para sincronización
+// Hook for synchronization
 export function useSync() {
   const [syncing, setSyncing] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
@@ -45,7 +54,7 @@ export function useSync() {
       const unsyncedData = await dbHelpers.getUnsyncedData();
       const result = await syncService.sync(unsyncedData);
       
-      // Guardar datos del servidor en IndexedDB
+      // Save server data to IndexedDB
       if (result.serverData.products) {
         for (const p of result.serverData.products) {
           await dbHelpers.addProduct(p);
@@ -58,7 +67,7 @@ export function useSync() {
       }
       if (result.serverData.fields) {
         for (const f of result.serverData.fields) {
-          await dbHelpers.addField(f);
+          await dbHelpers.addField(f as Field);
         }
       }
       if (result.serverData.applications) {
@@ -80,7 +89,7 @@ export function useSync() {
     }
   };
 
-  // Auto-sync cuando se recupera la conexión
+  // Auto-sync when connection is restored
   useEffect(() => {
     if (isOnline) {
       sync();
@@ -90,7 +99,7 @@ export function useSync() {
   return { syncing, lastSync, sync };
 }
 
-// Hook para calcular dosificación
+// Hook for dosage calculation
 export function useDosageCalculation() {
   const calculate = (
     fieldArea: number,
@@ -101,10 +110,10 @@ export function useDosageCalculation() {
     const productUsed = fieldArea * dosePerHectare;
     let waterNeeded = 0;
 
-    // Para productos líquidos, calcular agua necesaria
+    // For liquid products, calculate water needed
     if (productState === 'LIQUIDO' && concentration > 0) {
-      // Concentración = (producto / agua) * 100
-      // agua = (producto * 100) / concentración
+      // Concentration = (product / water) * 100
+      // water = (product * 100) / concentration
       waterNeeded = (productUsed * 100) / concentration;
     }
 
@@ -121,7 +130,7 @@ export function useDosageCalculation() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// NOTA: Los hooks de entidades fueron distribuidos a features/
+// NOTE: Entity hooks were distributed to features/
 //
 //   useProducts     → features/products/hooks
 //   useLots         → features/lots/hooks
@@ -131,6 +140,8 @@ export function useDosageCalculation() {
 //   useMovements    → features/movements/hooks
 //   useTancadas     → features/tancadas/hooks
 //   useTanks        → features/tanks/hooks
+//   useTerrains     → features/terrains/hooks
+//   usePlantings    → features/plantings/hooks
 //
-//   Usa imports directos desde las carpetas features/ para mejor organización
+//   Use direct imports from features/ folders for better organization
 // ═══════════════════════════════════════════════════════════════════════════

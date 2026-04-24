@@ -2,11 +2,11 @@ import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { useOnlineStatus, useSync } from './hooks/useData';
 import { useState, useEffect, lazy, Suspense } from 'react';
 
-// Lazy loading de páginas - se cargan solo cuando se necesitan
+// Lazy loading pages - loaded only when needed
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const LotsPage = lazy(() => import('./pages/LotsPage'));
-const FieldsPage = lazy(() => import('./pages/FieldsPage'));
+const TerrainsPage = lazy(() => import('./pages/TerrainsPage'));
 const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'));
 const StockPage = lazy(() => import('./pages/StockPage'));
 const TanksPage = lazy(() => import('./pages/TanksPage'));
@@ -17,7 +17,7 @@ const OperationSettingsPage = lazy(() => import('./pages/OperationSettingsPage')
 const FieldSettingsPage = lazy(() => import('./pages/FieldSettingsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 
-// Componente de carga para lazy loading
+// Loading component for lazy loading
 function PageLoader() {
   return (
     <div style={{
@@ -27,12 +27,12 @@ function PageLoader() {
       height: '100vh',
       color: 'var(--text-color)'
     }}>
-      <span>Cargando...</span>
+      <span>Loading...</span>
     </div>
   );
 }
 
-// Lista de tamaños de fuente
+// Font sizes
 const fontSizes = [
   { id: 'small', size: '14px' },
   { id: 'medium', size: '16px' },
@@ -45,7 +45,7 @@ function App() {
   const { syncing, lastSync, sync } = useSync();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Cargar tema y tamaño de fuente al iniciar
+  // Load theme and font size on init
   useEffect(() => {
     const savedTheme = localStorage.getItem('app-theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -59,18 +59,18 @@ function App() {
 
   const navItems = [
     // Inventory
-    { path: '/products', label: 'Productos', icon: '📦', group: 'inventario' },
+    { path: '/products', label: 'Products', icon: '📦', group: 'inventario' },
     { path: '/lots', label: 'Lotes', icon: '🔖', group: 'inventario' },
     { path: '/stock', label: 'Stock', icon: '📈', group: 'inventario' },
     { path: '/reports', label: 'Reportes', icon: '📊', group: 'inventario' },
-    { path: '/settings/products', label: 'Config Productos', icon: '⚙️', group: 'inventario' },
-    // Operations
-    { path: '/fields', label: 'Campos', icon: '🌾', group: 'operaciones' },
+    { path: '/settings/products', label: 'Config. Productos', icon: '⚙️', group: 'inventario' },
+    // Operations - Terrains/Fields hierarchy (all nested in /terrains)
+    { path: '/terrains', label: 'Terrenos', icon: '🗺️', group: 'operaciones' },
     { path: '/tanks', label: 'Tanques', icon: '🛢️', group: 'operaciones' },
     { path: '/tancadas', label: 'Tancadas', icon: '🚿', group: 'operaciones' },
     { path: '/applications', label: 'Aplicaciones', icon: '🚁', group: 'operaciones' },
-    { path: '/settings/operations', label: 'Config Operaciones', icon: '⚙️', group: 'operaciones' },
-    { path: '/settings/fields', label: 'Config Campos', icon: '🌾', group: 'operaciones' },
+    { path: '/settings/operations', label: 'Config. Operaciones', icon: '⚙️', group: 'operaciones' },
+    { path: '/settings/fields', label: 'Config. Siembras', icon: '🌱', group: 'operaciones' },
     // System
     { path: '/', label: 'Dashboard', icon: '📊', group: 'sistema' },
     { path: '/settings', label: 'Configuración', icon: '⚙️', group: 'sistema' },
@@ -91,29 +91,29 @@ function App() {
       <div className="status-bar">
         <div className="status-indicator">
           <span className={`status-dot ${isOnline ? 'online' : ''}`}></span>
-          <span>{isOnline ? 'En línea' : 'Sin conexión'}</span>
+          <span>{isOnline ? 'Online' : 'Offline'}</span>
         </div>
         <div className="status-indicator">
-          {syncing && <span>🔄 Sincronizando...</span>}
+          {syncing && <span>🔄 Syncing...</span>}
           {!syncing && isOnline && (
             <button 
               onClick={sync} 
               style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
             >
-              🔄 Sincronizar
+              🔄 Sync
             </button>
           )}
           {lastSync && (
-            <span>Última sync: {new Date(lastSync).toLocaleTimeString()}</span>
+            <span>Last sync: {new Date(lastSync).toLocaleTimeString()}</span>
           )}
         </div>
       </div>
 
-      {/* Botón hamburguesa para móvil - FUERA del nav */}
+      {/* Hamburger button for mobile - OUTSIDE nav */}
       <button 
         className="hamburger-btn"
         onClick={() => setMenuOpen(!menuOpen)}
-        aria-label="Menú"
+        aria-label="Menu"
       >
         {menuOpen ? '✕' : '☰'}
       </button>
@@ -175,7 +175,7 @@ function App() {
         </div>
       </nav>
 
-      {/* Overlay para cerrar menú */}
+      {/* Overlay to close menu */}
       {menuOpen && (
         <div 
           className="nav-overlay hide-desktop" 
@@ -191,7 +191,7 @@ function App() {
             <Route path="/lots" element={<LotsPage />} />
             <Route path="/stock" element={<StockPage />} />
             <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/fields" element={<FieldsPage />} />
+            <Route path="/terrains" element={<TerrainsPage />} />
             <Route path="/tanks" element={<TanksPage />} />
             <Route path="/tancadas" element={<TancadasPage />} />
             <Route path="/settings" element={<SettingsPage />} />
@@ -205,7 +205,7 @@ function App() {
       </main>
 
       <footer className="app-footer">
-        AgroControl v1.0.0 - Sistema de Inventario Agrícola Offline
+        AgroControl v1.0.0 - Offline Agricultural Inventory System
       </footer>
     </div>
   );

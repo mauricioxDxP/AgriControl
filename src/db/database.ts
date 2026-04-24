@@ -1,10 +1,13 @@
 import Dexie, { Table } from 'dexie';
-import { Product, Lot, Field, Application, Movement, ApplicationLot, Container, Tancada, TancadaField, Tank } from '../types';
+import { Product, Lot, Field, Application, Movement, ApplicationLot, Container, Tancada, TancadaField, Tank, Terrain, Planting } from '../types';
+
+// Use any for tables with circular references
+type AnyTable = Table<any>;
 
 export class AgroControlDB extends Dexie {
   products!: Table<Product>;
   lots!: Table<Lot>;
-  fields!: Table<Field>;
+  fields!: AnyTable;
   applications!: Table<Application>;
   movements!: Table<Movement>;
   applicationLots!: Table<ApplicationLot>;
@@ -12,11 +15,13 @@ export class AgroControlDB extends Dexie {
   tancadas!: Table<Tancada>;
   tancadaFields!: Table<TancadaField>;
   tanks!: Table<Tank>;
+  terrains!: AnyTable;
+  plantings!: AnyTable;
 
   constructor() {
     super('AgroControlDB');
     
-    this.version(8).stores({
+    this.version(9).stores({
       products: 'id, name, type, synced, updatedAt',
       lots: 'id, productId, synced, updatedAt',
       fields: 'id, name, synced, updatedAt',
@@ -26,7 +31,9 @@ export class AgroControlDB extends Dexie {
       containers: 'id, lotId, type, status, synced, updatedAt',
       tancadas: 'id, productId, date, synced, updatedAt',
       tancadaFields: 'id, tancadaId, fieldId, synced',
-      tanks: 'id, name, synced, updatedAt'
+      tanks: 'id, name, synced, updatedAt',
+      terrains: 'id, name, synced, updatedAt',
+      plantings: 'id, fieldId, productId, startDate, synced, updatedAt'
     });
   }
 }
@@ -85,23 +92,6 @@ export const dbHelpers = {
     await db.lots.delete(id);
   },
 
-  // Campos
-  async getAllFields(): Promise<Field[]> {
-    return await db.fields.toArray();
-  },
-  
-  async addField(field: Field): Promise<string> {
-    return await db.fields.put(field);
-  },
-  
-  async updateField(id: string, changes: Partial<Field>): Promise<number> {
-    return await db.fields.update(id, { ...changes, updatedAt: new Date().toISOString() });
-  },
-  
-  async deleteField(id: string): Promise<void> {
-    await db.fields.delete(id);
-  },
-
   // Aplicaciones
   async getAllApplications(): Promise<Application[]> {
     return await db.applications.toArray();
@@ -121,6 +111,35 @@ export const dbHelpers = {
   
   async deleteApplication(id: string): Promise<void> {
     await db.applications.delete(id);
+  },
+
+  // Fields
+  async getAllFields(): Promise<Field[]> {
+    return await db.fields.toArray();
+  },
+
+  async getField(id: string): Promise<Field | undefined> {
+    return await db.fields.get(id);
+  },
+
+  async getFieldsByTerrain(terrainId: string): Promise<Field[]> {
+    return await db.fields.where('terrainId').equals(terrainId).toArray();
+  },
+
+  async addField(field: Field): Promise<string> {
+    return await db.fields.put(field);
+  },
+
+  async updateField(id: string, changes: Partial<Field>): Promise<number> {
+    return await db.fields.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  },
+
+  async deleteField(id: string): Promise<void> {
+    await db.fields.delete(id);
+  },
+
+  async clearFields(): Promise<void> {
+    await db.fields.clear();
   },
 
   // Movimientos
@@ -247,5 +266,65 @@ export const dbHelpers = {
 
   async deleteTank(id: string): Promise<void> {
     await db.tanks.delete(id);
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Terrain helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getAllTerrains(): Promise<Terrain[]> {
+    return await db.terrains.toArray();
+  },
+
+  async getTerrain(id: string): Promise<Terrain | undefined> {
+    return await db.terrains.get(id);
+  },
+
+  async addTerrain(terrain: Terrain): Promise<string> {
+    return await db.terrains.put(terrain);
+  },
+
+  async updateTerrain(id: string, changes: Partial<Terrain>): Promise<number> {
+    return await db.terrains.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  },
+
+  async deleteTerrain(id: string): Promise<void> {
+    await db.terrains.delete(id);
+  },
+
+  async clearTerrains(): Promise<void> {
+    await db.terrains.clear();
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Planting helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getAllPlantings(): Promise<Planting[]> {
+    return await db.plantings.toArray();
+  },
+
+  async getPlanting(id: string): Promise<Planting | undefined> {
+    return await db.plantings.get(id);
+  },
+
+  async getPlantingsByField(fieldId: string): Promise<Planting[]> {
+    return await db.plantings.where('fieldId').equals(fieldId).toArray();
+  },
+
+  async addPlanting(planting: Planting): Promise<string> {
+    return await db.plantings.put(planting);
+  },
+
+  async updatePlanting(id: string, changes: Partial<Planting>): Promise<number> {
+    return await db.plantings.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  },
+
+  async deletePlanting(id: string): Promise<void> {
+    await db.plantings.delete(id);
+  },
+
+  async clearPlantings(): Promise<void> {
+    await db.plantings.clear();
   }
 };

@@ -274,7 +274,7 @@ export function useFields() {
       id: uuidv4(),
       name: data.name || '',
       area: data.area || 0,
-      location: data.location,
+      terrainId: data.terrainId || '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       synced: false
@@ -506,7 +506,7 @@ export function useSync() {
       }
       if (result.serverData.fields) {
         for (const f of result.serverData.fields) {
-          await dbHelpers.addField(f);
+          await dbHelpers.addField(f as Field);
         }
       }
       if (result.serverData.applications) {

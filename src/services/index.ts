@@ -8,6 +8,8 @@ export { tancadasService } from '../features/tancadas/services';
 export { tanksService } from '../features/tanks/services';
 export { syncService } from '../features/sync/services';
 export { settingsService } from '../features/settings/services';
+export { terrainsService } from '../features/terrains/services';
+export { plantingsService } from '../features/plantings/services';
 
 // Export request helper
 export { request, API_BASE } from '../shared/services/request';

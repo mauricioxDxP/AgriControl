@@ -596,7 +596,7 @@ export default function TancadasPage() {
       {fields.length === 0 && (
         <div className="card">
           <div className="empty-state">
-            <p>Primero debés crear campos para registrar tancadas</p>
+            <p>Primero creá un terreno y un campo en la sección Terrenos</p>
           </div>
         </div>
       )}

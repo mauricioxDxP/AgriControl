@@ -7,6 +7,8 @@ export const fieldsService = {
   
   getById: (id: string) => request<Field>(`/fields/${id}`),
   
+  getByTerrain: (terrainId: string) => request<Field[]>(`/fields?terrainId=${terrainId}`),
+  
   create: async (data: Partial<Field>) => {
     const result = await request<Field>('/fields', {
       method: 'POST',

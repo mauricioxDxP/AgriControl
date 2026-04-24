@@ -363,7 +363,7 @@ export default function ApplicationsPage() {
       {fields.length === 0 && (
         <div className="card">
           <div className="empty-state">
-            <p>Primero debés crear campos para registrar aplicaciones</p>
+            <p>Primero creá un terreno y un campo en la sección Terrenos</p>
           </div>
         </div>
       )}
