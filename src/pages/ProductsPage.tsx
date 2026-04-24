@@ -3,6 +3,7 @@ import { useProducts, useLots, useMovements } from '../hooks/useData';
 import { Product, BaseUnit, DoseType, DoseUnit, Lot } from '../types';
 import { settingsService } from '../services';
 import { searchProductsFlowise } from '../services/FlowiseService';
+import { getBaseUnitAbbr, getDoseUnitAbbr } from '../utils/units';
 import CameraCapture from '../components/CameraCapture';
 
 interface SettingItem {
@@ -62,10 +63,10 @@ export default function ProductsPage() {
 
   // Helper para unidad de dosis
   const getDoseUnit = (product: Product): string => {
-    if (product.doseUnit && product.doseUnit !== 'BASE_UNIT') {
-      return product.doseUnit;
-    }
-    return product.baseUnit;
+    const unit = product.doseUnit && product.doseUnit !== 'BASE_UNIT' 
+      ? product.doseUnit 
+      : getBaseUnitAbbr(product.baseUnit);
+    return getDoseUnitAbbr(unit);
   };
 
   // Calculate container summary from movements
@@ -503,7 +504,7 @@ return result;
                                 </div>
                                 <div>
                                   <span className="card-mobile-label">Unidad:</span>
-                                  <span>{product.baseUnit}</span>
+                                  <span>{getBaseUnitAbbr(product.baseUnit)}</span>
                                 </div>
                               </div>
                               
@@ -556,13 +557,13 @@ return result;
                                     <div className="lots-dropdown-content">
                                       {productLots.map(lot => {
                                         const summary = calculateContainers(lot);
-                                        const unit = product.baseUnit;
+                                        const unit = getBaseUnitAbbr(product.baseUnit);
                                         return (
                                           <div key={lot.id} className="lot-item">
                                             <div className="lot-item-header">
                                               <span className="lot-code">
                                                 {lot.lotCode || lot.id.slice(0, 8)}
-                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {product.baseUnit})</span>}
+                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {getBaseUnitAbbr(product.baseUnit)})</span>}
                                               </span>
                                               <span className="lot-stock">
                                                 Stock: {summary.remainingStock.toFixed(2)} {unit}
@@ -663,7 +664,7 @@ return result;
                                     </td>
                                     <td><span className={`badge ${getTypeBadge(product)}`}>{getTypeName(product)}</span></td>
                                     <td>{getStateName(product)}</td>
-                                    <td>{product.baseUnit}</td>
+                                    <td>{getBaseUnitAbbr(product.baseUnit)}</td>
                                     <td>{product.dosePerHectareMin && product.dosePerHectareMax ? `${product.dosePerHectareMin}-${product.dosePerHectareMax} ${getDoseUnit(product)}/ha` : '-'}</td>
                                     <td>
                                       {productLots.length > 0 ? (
@@ -691,10 +692,10 @@ return result;
                                             <div className="lot-expanded-header">
                                               <span className="lot-code">
                                                 Código: {lot.lotCode || lot.id.slice(0, 8)}
-                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {product.baseUnit})</span>}
+                                                {lot.containerCapacity && <span className="lot-capacity"> ({lot.containerCapacity} {getBaseUnitAbbr(product.baseUnit)})</span>}
                                               </span>
                                               <span className="lot-stock-badge">
-                                                Stock: {summary.remainingStock.toFixed(2)} {product.baseUnit}
+                                                Stock: {summary.remainingStock.toFixed(2)} {getBaseUnitAbbr(product.baseUnit)}
                                               </span>
                                             </div>
                                             <div className="lot-expanded-details">
@@ -706,7 +707,7 @@ return result;
                                                   📦 {[
                                                     summary.qtyFull > 0 && `Llenos: ${summary.qtyFull}`,
                                                     summary.qtyEmpty > 0 && `Vacíos: ${summary.qtyEmpty}`,
-                                                    summary.remainingQuantity > 0 && `Parcial: ${summary.remainingQuantity.toFixed(2)} ${product.baseUnit}`
+                                                    summary.remainingQuantity > 0 && `Parcial: ${summary.remainingQuantity.toFixed(2)} ${getBaseUnitAbbr(product.baseUnit)}`
                                                   ].filter(Boolean).join(' | ')}
                                                 </span>
                                               )}

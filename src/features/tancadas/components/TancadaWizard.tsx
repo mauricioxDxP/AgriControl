@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Field, Product, Tank, Lot } from '../../../types';
 import { convertDoseToBaseUnit } from '../../../shared/utils/unitConversions';
+import ProductSelector from '../../../components/ProductSelector';
 
 type WizardStep = 'date-tank' | 'fields-hectares' | 'add-product' | 'products-list' | 'notes' | 'confirm';
 
@@ -20,8 +21,7 @@ interface WizardState {
   currentDosePerHectare: string;
   currentConcentrationPerLiter: string;
   currentQuantity: string;
-  currentLotId: string;
-  currentLotQuantity: string;
+  currentLots: { lotId: string; quantityUsed: number }[];
   autoDosage: boolean;
 }
 
@@ -59,8 +59,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     currentDosePerHectare: '',
     currentConcentrationPerLiter: '',
     currentQuantity: '',
-    currentLotId: '',
-    currentLotQuantity: '',
+    currentLots: [],
     autoDosage: (() => {
       const saved = localStorage.getItem('auto-dosage');
       return saved !== null ? saved === 'true' : false;
@@ -85,6 +84,12 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     }
     return availableProducts;
   }, [products, availableProducts, wizardState.selectedProductId]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Reset handled by ProductSelector internally
+    }
+  }, [isOpen]);
 
   // Cargar datos de edición cuando cambia editTancada
   useEffect(() => {
@@ -141,8 +146,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         currentDosePerHectare: '',
         currentConcentrationPerLiter: '',
         currentQuantity: '',
-        currentLotId: '',
-        currentLotQuantity: '',
+        currentLots: [],
         autoDosage: (() => {
           const saved = localStorage.getItem('auto-dosage');
           return saved !== null ? saved === 'true' : false;
@@ -179,18 +183,60 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     }
   };
 
+  const handleProductSelect = (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    const totalHa = parseFloat(wizardState.totalHectares) || 0;
+    const waterAmount = parseFloat(wizardState.waterAmount) || 0;
+    
+    let suggestedQuantity = '';
+    
+    if (wizardState.autoDosage) {
+      const doseType = product?.doseType || 'PER_HECTARE';
+      
+      if (doseType === 'CONCENTRATION') {
+        const concPerLiter = product?.concentrationPerLiter || 0;
+        if (waterAmount > 0 && concPerLiter > 0) {
+          suggestedQuantity = ((concPerLiter * waterAmount) / 1000).toFixed(2);
+        }
+      } else {
+        const dose = product?.dosePerHectareMin || 0;
+        if (totalHa > 0 && dose > 0) {
+          const convertedDose = convertDoseToBaseUnit(
+            dose, 
+            product?.doseUnit, 
+            product?.baseUnit || 'L'
+          );
+          suggestedQuantity = (totalHa * convertedDose).toFixed(2);
+        }
+      }
+    }
+    
+    setWizardState({ 
+      ...wizardState, 
+      selectedProductId: productId,
+      currentConcentration: product?.concentration?.toString() || '',
+      currentDosePerHectare: wizardState.autoDosage ? (product?.dosePerHectareMin?.toString() || '') : '',
+      currentConcentrationPerLiter: wizardState.autoDosage ? (product?.concentrationPerLiter?.toString() || '') : '',
+      currentQuantity: suggestedQuantity
+    });
+  };
+
+  const openProductSearch = () => {
+    setProductSearchOpen(true);
+    setProductSearchQuery('');
+  };
+
   // Agregar un nuevo producto - mostrar formulario completo
   const startAddProduct = () => {
     setWizardState({
       ...wizardState,
       step: 'add-product',
-      selectedProductId: availableProducts.length > 0 ? availableProducts[0].id : '',
+      selectedProductId: '',
       currentConcentration: '',
       currentDosePerHectare: '',
       currentConcentrationPerLiter: '',
       currentQuantity: '',
-      currentLotId: '',
-      currentLotQuantity: ''
+      currentLots: []
     });
   };
 
@@ -227,11 +273,6 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       quantity = parseFloat(wizardState.currentQuantity);
     }
 
-    const newLots = wizardState.currentLotId ? [{
-      lotId: wizardState.currentLotId,
-      quantityUsed: parseFloat(wizardState.currentLotQuantity) || quantity
-    }] : [];
-
     const newProduct = {
       productId: wizardState.selectedProductId,
       concentration: wizardState.currentConcentration,
@@ -239,25 +280,23 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       dosePerHectare: wizardState.currentDosePerHectare,
       concentrationPerLiter: wizardState.currentConcentrationPerLiter,
       doseType: doseType,
-      lots: newLots
+      lots: wizardState.currentLots
     };
 
     const updatedProducts = [...wizardState.products, newProduct];
 
     // Luego abrir para agregar otro
     if (availableProducts.length > 1) {
-      const nextProduct = availableProducts.find(p => p.id !== wizardState.selectedProductId);
       setWizardState({
         ...wizardState,
         step: 'add-product',
         products: updatedProducts,
-        selectedProductId: nextProduct?.id || '',
+        selectedProductId: '',
         currentConcentration: '',
         currentDosePerHectare: '',
         currentConcentrationPerLiter: '',
         currentQuantity: '',
-        currentLotId: '',
-        currentLotQuantity: ''
+        currentLots: []
       });
     } else {
       goToStep('products-list');
@@ -303,8 +342,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       currentDosePerHectare: product.dosePerHectare || '',
       currentConcentrationPerLiter: product.concentrationPerLiter || '',
       currentQuantity: product.quantity,
-      currentLotId: product.lots && product.lots.length > 0 ? product.lots[0].lotId : '',
-      currentLotQuantity: product.lots && product.lots.length > 0 ? product.lots[0].quantityUsed.toString() : ''
+      currentLots: product.lots || []
     });
   };
 
@@ -473,54 +511,15 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
           {/* Paso 3: Agregar Producto */}
           {wizardState.step === 'add-product' && (
             <div>
-              {/* Selector de producto */}
+              {/* Selector de producto con buscador */}
               <div className="form-group">
                 <label className="form-label">Producto *</label>
-                <select className="form-select" value={wizardState.selectedProductId} onChange={e => {
-                  const productId = e.target.value;
-                  const product = products.find(p => p.id === productId);
-                  const totalHa = parseFloat(wizardState.totalHectares) || 0;
-                  const waterAmount = parseFloat(wizardState.waterAmount) || 0;
-                  
-                  // Calcular cantidad según doseType solo si autoDosage está activo
-                  let suggestedQuantity = '';
-                  
-                  if (wizardState.autoDosage) {
-                    const doseType = product?.doseType || 'PER_HECTARE';
-                    
-                    if (doseType === 'CONCENTRATION') {
-                      const concPerLiter = product?.concentrationPerLiter || 0;
-                      if (waterAmount > 0 && concPerLiter > 0) {
-                        suggestedQuantity = ((concPerLiter * waterAmount) / 1000).toFixed(2);
-                      }
-                    } else {
-                      const dose = product?.dosePerHectareMin || 0;
-                      if (totalHa > 0 && dose > 0) {
-                        // Convertir la dosis a la unidad base del producto
-                        const convertedDose = convertDoseToBaseUnit(
-                          dose, 
-                          product?.doseUnit, 
-                          product?.baseUnit || 'L'
-                        );
-                        suggestedQuantity = (totalHa * convertedDose).toFixed(2);
-                      }
-                    }
-                  }
-                  
-                  setWizardState({ 
-                    ...wizardState, 
-                    selectedProductId: productId,
-                    currentConcentration: product?.concentration?.toString() || '',
-                    currentDosePerHectare: wizardState.autoDosage ? (product?.dosePerHectareMin?.toString() || '') : '',
-                    currentConcentrationPerLiter: wizardState.autoDosage ? (product?.concentrationPerLiter?.toString() || '') : '',
-                    currentQuantity: suggestedQuantity
-                  });
-                }}>
-                  <option value="">Elegir producto...</option>
-                  {selectProducts.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.baseUnit}) {p.doseType === 'CONCENTRATION' ? '- cc/L' : '- ha'}</option>
-                  ))}
-                </select>
+                <ProductSelector
+                  products={selectProducts}
+                  selectedProductId={wizardState.selectedProductId}
+                  onSelect={handleProductSelect}
+                  excludedProductIds={wizardState.products.map(p => p.productId)}
+                />
               </div>
 
               {wizardState.selectedProductId && (() => {
@@ -604,59 +603,67 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                     </div>
                   )}
 
-                  {/* Selector de lote */}
+                  {/* Selector de lotes */}
                   {productLots.length > 0 ? (
                     <div className="form-group">
-                      <label className="form-label">Lote (opcional)</label>
-                      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <select 
-                          className="form-select" 
-                          value={wizardState.currentLotId} 
-                          onChange={e => {
-                            const lotId = e.target.value;
-                            if (lotId) {
-                              const lot = productLots.find(l => l.id === lotId);
-                              setWizardState({ 
-                                ...wizardState, 
-                                currentLotId: lotId,
-                                currentLotQuantity: wizardState.currentQuantity || lot?.initialStock?.toString() || ''
-                              });
-                            } else {
-                              setWizardState({ ...wizardState, currentLotId: '', currentLotQuantity: '' });
-                            }
-                          }}
-                          style={{ flex: 1 }}
-                        >
-                          <option value="">Sin lote específico</option>
-                          {productLots.map(lot => (
-                            <option key={lot.id} value={lot.id}>
-                              {lot.lotCode || `Lote ${lot.id.slice(0,8)}`} - Stock: {lot.initialStock} {getSelectedProduct()?.baseUnit}
-                              {lot.expiryDate ? ` (Vence: ${new Date(lot.expiryDate).toLocaleDateString('es-AR')})` : ''}
-                            </option>
-                          ))}
-                        </select>
-                        {wizardState.currentLotId && (
-                          <button 
-                            type="button" 
-                            className="btn btn-danger btn-sm"
-                            onClick={() => setWizardState({ ...wizardState, currentLotId: '', currentLotQuantity: '' })}
-                            title="Eliminar lote"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                      {wizardState.currentLotId && (
-                        <input 
-                          type="number" 
-                          step="0.01" 
-                          className="form-input" 
-                          style={{ marginTop: '0.5rem' }}
-                          value={wizardState.currentLotQuantity} 
-                          onChange={e => setWizardState({ ...wizardState, currentLotQuantity: e.target.value })} 
-                          placeholder="Cantidad del lote" 
-                        />
-                      )}
+                      <label className="form-label">Lotes a utilizar</label>
+                      {wizardState.currentLots.map((lotEntry, idx) => {
+                        const lot = productLots.find(l => l.id === lotEntry.lotId);
+                        return (
+                          <div key={idx} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
+                            <select 
+                              className="form-select" 
+                              value={lotEntry.lotId}
+                              onChange={e => {
+                                const newLots = [...wizardState.currentLots];
+                                newLots[idx].lotId = e.target.value;
+                                setWizardState({ ...wizardState, currentLots: newLots });
+                              }}
+                              style={{ flex: 2 }}
+                            >
+                              {productLots.map(l => (
+                                <option key={l.id} value={l.id}>
+                                  {l.lotCode || `Lote ${l.id.slice(0,8)}`} - Stock: {l.initialStock} {selectedProduct?.baseUnit}
+                                  {l.expiryDate ? ` (Vence: ${new Date(l.expiryDate).toLocaleDateString('es-AR')})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              type="number"
+                              step="0.01"
+                              className="form-input"
+                              value={lotEntry.quantityUsed}
+                              onChange={e => {
+                                const newLots = [...wizardState.currentLots];
+                                newLots[idx].quantityUsed = parseFloat(e.target.value) || 0;
+                                setWizardState({ ...wizardState, currentLots: newLots });
+                              }}
+                              placeholder="Cant"
+                              style={{ flex: 1 }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-danger btn-sm"
+                              onClick={() => {
+                                const newLots = wizardState.currentLots.filter((_, i) => i !== idx);
+                                setWizardState({ ...wizardState, currentLots: newLots });
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => {
+                          const newLots = [...wizardState.currentLots, { lotId: productLots[0]?.id || '', quantityUsed: 0 }];
+                          setWizardState({ ...wizardState, currentLots: newLots });
+                        }}
+                      >
+                        + Agregar Lote
+                      </button>
                     </div>
                   ) : (
                     <div style={{ padding: '0.75rem', background: '#fff3cd', borderRadius: '4px', fontSize: '0.8rem', color: '#856404' }}>

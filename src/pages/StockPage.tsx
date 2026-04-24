@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
 import { settingsService } from '../services';
+import { getBaseUnitAbbr } from '../utils/units';
 
 interface SettingItem {
   id: string;
@@ -35,6 +36,9 @@ export default function StockPage() {
     };
     loadTypes();
   }, []);
+
+  // Helper para obtener unidad abreviada
+  const getUnit = (baseUnit: string) => getBaseUnitAbbr(baseUnit);
 
   const selectedProduct = products.find(p => p.id === selectedProductId);
   const productLots = lots.filter(l => l.productId === selectedProductId);
@@ -91,9 +95,9 @@ interface StockItem {
   lotesCount: number;
 }
 
-// Stock por producto (todos) - con filtros
-const stockByProduct = useMemo((): StockItem[] => {
-    const result: StockItem[] = [];
+// Stock por producto (todos) - con filtros - agrupado por tipo
+  const stockByProductGrouped = useMemo(() => {
+    const byType = new Map<string, StockItem[]>();
     
     products.forEach(product => {
       const productType = (product as any)?.type?.name || product.type || '';
@@ -129,17 +133,27 @@ const stockByProduct = useMemo((): StockItem[] => {
       const stockActual = entradas - salidas;
       const stockLotes = productLotsList.reduce((sum, l) => sum + l.initialStock, 0);
 
-      result.push({
+      const item: StockItem = {
         product,
         entradas,
         salidas,
         stockActual,
         stockLotes,
         lotesCount: productLotsList.length
-      });
+      };
+
+      const typeName = productType || 'OTRO';
+      if (!byType.has(typeName)) byType.set(typeName, []);
+      byType.get(typeName)!.push(item);
     });
     
-    return result;
+    // Sort items within each type alphabetically by product name
+    byType.forEach(items => items.sort((a, b) => a.product.name.localeCompare(b.product.name)));
+    
+    return { 
+      byType, 
+      sortedTypes: Array.from(byType.keys()).sort()
+    };
   }, [products, movements, lots, filterTypes, searchQuery]);
 
   const formatNumber = (num: number) => num.toFixed(2);
@@ -212,56 +226,63 @@ const stockByProduct = useMemo((): StockItem[] => {
         </div>
         
         {/* Vista móvil - Cards */}
-        {stockByProduct.length > 0 && (
+        {stockByProductGrouped.sortedTypes.length > 0 && (
           <div className="mobile-cards">
-            {stockByProduct.map((item) => {
-              const typeName = item.product.type?.name || String(item.product.type || 'OTRO');
+            {stockByProductGrouped.sortedTypes.map(typeName => {
+              const items = stockByProductGrouped.byType.get(typeName)!;
               return (
-                <div 
-                  key={item.product.id} 
-                  className="card-mobile"
-                  onClick={() => setSelectedProductId(item.product.id)}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="card-mobile-header">
-                    <span className="card-mobile-date">{item.product.name}</span>
-                    <span className={`card-mobile-badge ${
-                      typeName === 'SEMILLA' ? 'badge-primary' : 
-                      typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
-                    }`}>
-                      {typeName}
-                    </span>
-                  </div>
-                  
-                  <div className="card-mobile-content">
-                    <div className="card-mobile-row">
-                      <div>
-                        <span className="card-mobile-label">Lotes:</span>
-                        <span>{item.lotesCount}</span>
+                <div key={typeName}>
+                  <div className="section-header">{typeName} ({items.length})</div>
+                  {items.map((item) => {
+                    return (
+                      <div 
+                        key={item.product.id} 
+                        className="card-mobile"
+                        onClick={() => setSelectedProductId(item.product.id)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div className="card-mobile-header">
+                          <span className="card-mobile-date">{item.product.name}</span>
+                          <span className={`card-mobile-badge ${
+                            typeName === 'SEMILLA' ? 'badge-primary' : 
+                            typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
+                          }`}>
+                            {typeName}
+                          </span>
+                        </div>
+                        
+                        <div className="card-mobile-content">
+                          <div className="card-mobile-row">
+                            <div>
+                              <span className="card-mobile-label">Lotes:</span>
+                              <span>{item.lotesCount}</span>
+                            </div>
+                            <div>
+                              <span className="card-mobile-label">Stock:</span>
+                              <strong style={{ 
+                                color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                              }}>
+                                {formatNumber(item.stockActual)} {item.product.baseUnit}
+                              </strong>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="card-mobile-actions">
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedProductId(item.product.id);
+                            }}
+                            style={{ width: '100%' }}
+                          >
+                            📋 Ver Detalle
+                          </button>
+                        </div>
                       </div>
-                      <div>
-                        <span className="card-mobile-label">Stock:</span>
-                        <strong style={{ 
-                          color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
-                        }}>
-                          {formatNumber(item.stockActual)} {item.product.baseUnit}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="card-mobile-actions">
-                    <button 
-                      className="btn btn-secondary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedProductId(item.product.id);
-                      }}
-                      style={{ width: '100%' }}
-                    >
-                      📋 Ver Detalle
-                    </button>
-                  </div>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -269,7 +290,7 @@ const stockByProduct = useMemo((): StockItem[] => {
         )}
 
         {/* Vista desktop - Tabla */}
-        {stockByProduct.length > 0 ? (
+        {stockByProductGrouped.sortedTypes.length > 0 ? (
           <div className="table-container hide-mobile">
             <table className="table">
               <thead>
@@ -284,48 +305,57 @@ const stockByProduct = useMemo((): StockItem[] => {
                 </tr>
               </thead>
               <tbody>
-                {stockByProduct.map((item) => {
-                  const typeName = item.product.type?.name || String(item.product.type || 'OTRO');
+                {stockByProductGrouped.sortedTypes.map(typeName => {
+                  const items = stockByProductGrouped.byType.get(typeName)!;
                   return (
-                  <tr 
-                    key={item.product.id}
-                    style={{ 
-                      background: selectedProductId === item.product.id ? 'var(--gray-100)' : 'transparent',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => setSelectedProductId(item.product.id)}
-                  >
-                    <td><strong>{item.product.name}</strong></td>
-                    <td>
-                      <span className={`badge ${
-                        typeName === 'SEMILLA' ? 'badge-primary' : 
-                        typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
-                      }`}>
-                        {typeName}
-                      </span>
-                    </td>
-                    <td>{item.lotesCount}</td>
-                    <td className="hide-mobile" style={{ color: 'var(--success)' }}>{formatNumber(item.entradas)}</td>
-                    <td className="hide-mobile" style={{ color: 'var(--danger)' }}>{formatNumber(item.salidas)}</td>
-                    <td>
-                      <strong style={{ 
-                        color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
-                      }}>
-                        {formatNumber(item.stockActual)}
-                      </strong>
-                    </td>
-                    <td className="hide-mobile">
-                      <button 
-                        className="btn btn-secondary btn-sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedProductId(item.product.id);
-                        }}
-                      >
-                        Ver
-                      </button>
-                    </td>
-                  </tr>
+                    <React.Fragment key={typeName}>
+                      <tr>
+                        <td colSpan={7} style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem', fontWeight: 'bold' }}>{typeName}</td>
+                      </tr>
+                      {items.map((item) => {
+                        return (
+                        <tr 
+                          key={item.product.id}
+                          style={{ 
+                            background: selectedProductId === item.product.id ? 'var(--gray-100)' : 'transparent',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => setSelectedProductId(item.product.id)}
+                        >
+                          <td><strong>{item.product.name}</strong></td>
+                          <td>
+                            <span className={`badge ${
+                              typeName === 'SEMILLA' ? 'badge-primary' : 
+                              typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
+                            }`}>
+                              {typeName}
+                            </span>
+                          </td>
+                          <td>{item.lotesCount}</td>
+                          <td className="hide-mobile" style={{ color: 'var(--success)' }}>{formatNumber(item.entradas)}</td>
+                          <td className="hide-mobile" style={{ color: 'var(--danger)' }}>{formatNumber(item.salidas)}</td>
+                          <td>
+                            <strong style={{ 
+                              color: item.stockActual < 0 ? 'var(--danger)' : item.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
+                            }}>
+                              {formatNumber(item.stockActual)}
+                            </strong>
+                          </td>
+                          <td className="hide-mobile">
+                            <button 
+                              className="btn btn-secondary btn-sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedProductId(item.product.id);
+                              }}
+                            >
+                              Ver
+                            </button>
+                          </td>
+                        </tr>
+                        );
+                      })}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
@@ -362,7 +392,7 @@ const stockByProduct = useMemo((): StockItem[] => {
             }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--gray-600)' }}>Stock en Lotes</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                {formatNumber(stockInfo.stockLotes)} {selectedProduct.baseUnit}
+                {formatNumber(stockInfo.stockLotes)} {getUnit(selectedProduct.baseUnit)}
               </div>
             </div>
             <div style={{ 
@@ -373,7 +403,7 @@ const stockByProduct = useMemo((): StockItem[] => {
             }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--success)' }}>Entradas</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--success)' }}>
-                +{formatNumber(stockInfo.entradas)} {selectedProduct.baseUnit}
+                +{formatNumber(stockInfo.entradas)} {getUnit(selectedProduct.baseUnit)}
               </div>
             </div>
             <div style={{ 
@@ -384,7 +414,7 @@ const stockByProduct = useMemo((): StockItem[] => {
             }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--danger)' }}>Salidas</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--danger)' }}>
-                -{formatNumber(stockInfo.salidas)} {selectedProduct.baseUnit}
+                -{formatNumber(stockInfo.salidas)} {getUnit(selectedProduct.baseUnit)}
               </div>
             </div>
             <div style={{ 
@@ -396,7 +426,7 @@ const stockByProduct = useMemo((): StockItem[] => {
             }}>
               <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Stock Real</div>
               <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                {formatNumber(stockInfo.stockActual)} {selectedProduct.baseUnit}
+                {formatNumber(stockInfo.stockActual)} {getUnit(selectedProduct.baseUnit)}
               </div>
             </div>
           </div>
@@ -426,7 +456,7 @@ const stockByProduct = useMemo((): StockItem[] => {
                         color: lot.stockActual < 0 ? 'var(--danger)' : 
                                lot.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)'
                       }}>
-                        {formatNumber(lot.stockActual)} {selectedProduct.baseUnit}
+                        {formatNumber(lot.stockActual)} {getUnit(selectedProduct.baseUnit)}
                       </strong>
                     </div>
                     <div>
@@ -483,9 +513,9 @@ const stockByProduct = useMemo((): StockItem[] => {
                         ) : '-'}
                       </td>
                       <td>{lot.supplier || '-'}</td>
-                      <td>{lot.initialStock} {selectedProduct.baseUnit}</td>
+                      <td>{lot.initialStock} {getUnit(selectedProduct.baseUnit)}</td>
                       <td style={{ color: 'var(--danger)' }}>
-                        -{formatNumber(lot.salidas)} {selectedProduct.baseUnit}
+                        -{formatNumber(lot.salidas)} {getUnit(selectedProduct.baseUnit)}
                       </td>
                       <td>
                         <strong style={{ 
@@ -493,7 +523,7 @@ const stockByProduct = useMemo((): StockItem[] => {
                                  lot.stockActual === 0 ? 'var(--gray-500)' : 'var(--primary)',
                           fontSize: '1.1rem'
                         }}>
-                          {formatNumber(lot.stockActual)} {selectedProduct.baseUnit}
+                          {formatNumber(lot.stockActual)} {getUnit(selectedProduct.baseUnit)}
                         </strong>
                       </td>
                     </tr>
@@ -529,7 +559,7 @@ const stockByProduct = useMemo((): StockItem[] => {
                       <strong style={{ 
                         color: movement.type === 'ENTRADA' ? 'var(--success)' : 'var(--danger)'
                       }}>
-                        {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {selectedProduct.baseUnit}
+                        {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {getUnit(selectedProduct.baseUnit)}
                       </strong>
                     </div>
                   </div>
@@ -569,7 +599,7 @@ const stockByProduct = useMemo((): StockItem[] => {
                         fontWeight: 'bold',
                         color: movement.type === 'ENTRADA' ? 'var(--success)' : 'var(--danger)'
                       }}>
-                        {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {selectedProduct.baseUnit}
+                        {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {getUnit(selectedProduct.baseUnit)}
                       </td>
                       <td>{movement.notes || '-'}</td>
                     </tr>

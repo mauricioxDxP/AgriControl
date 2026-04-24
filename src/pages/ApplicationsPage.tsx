@@ -4,6 +4,8 @@ import { movementsService } from '../services';
 import { ApplicationType, Application } from '../types';
 import ApplicationWizard from '../features/applications/components/ApplicationWizard';
 import { convertDoseToBaseUnit } from '../utils/unitConversions';
+import { getBaseUnitAbbr } from '../utils/units';
+import ProductSelector from '../components/ProductSelector';
 
 export default function ApplicationsPage() {
   const { applications, loading, addApplication, updateApplication, deleteApplication } = useApplications();
@@ -11,6 +13,9 @@ export default function ApplicationsPage() {
   const { products } = useProducts();
   const { lots } = useLots();
   const { calculate } = useDosageCalculation();
+  
+  // Helper para obtener unidad abreviada
+  const getUnit = (baseUnit: string | undefined) => baseUnit ? getBaseUnitAbbr(baseUnit) : '';
   
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
@@ -405,7 +410,7 @@ export default function ApplicationsPage() {
                     <span className="card-mobile-label">Productos:</span>
                     {app.applicationProducts?.map((ap, idx) => (
                       <span key={idx} className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem', display: 'inline-block' }}>
-                        {ap.product?.name}: {ap.quantityUsed}{ap.product?.baseUnit}
+                        {ap.product?.name}: {ap.quantityUsed}{getUnit(ap.product?.baseUnit)}
                       </span>
                     ))}
                   </div>
@@ -465,13 +470,13 @@ export default function ApplicationsPage() {
                     <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
                     <td>
                       {app.applicationProducts?.map((ap, idx) => {
-                        const doseUnitLabel = ap.product?.doseUnit && ap.product.doseUnit !== 'BASE_UNIT' ? ap.product.doseUnit : ap.product?.baseUnit;
+                        const doseUnitLabel = ap.product?.doseUnit && ap.product.doseUnit !== 'BASE_UNIT' ? ap.product.doseUnit : getUnit(ap.product?.baseUnit);
                         return (
                         <div key={idx} style={{ marginBottom: '0.25rem' }}>
                           <span className="badge badge-primary">
                             {ap.product?.name || '-'}
                             {ap.dosePerHectare ? ` ${ap.dosePerHectare}${doseUnitLabel}/ha` : ''}
-                            : {ap.quantityUsed} {ap.product?.baseUnit}
+                            : {ap.quantityUsed} {getUnit(ap.product?.baseUnit)}
                           </span>
                         </div>
                       )})}
@@ -575,18 +580,14 @@ export default function ApplicationsPage() {
                         marginBottom: '0.75rem'
                       }}>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'flex-end' }}>
-                          <select
-                            className="form-select"
-                            value={sp.productId}
-                            onChange={e => handleProductChange(index, 'productId', e.target.value)}
-                            style={{ flex: 2 }}
-                          >
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
+                          <div style={{ flex: 2 }}>
+                            <ProductSelector
+                              products={products}
+                              selectedProductId={sp.productId}
+                              onSelect={(productId) => handleProductChange(index, 'productId', productId)}
+                              excludedProductIds={selectedProducts.slice(0, index).map(p => p.productId)}
+                            />
+                          </div>
                           
                           {autoDosage && (
                             <>
@@ -607,7 +608,7 @@ export default function ApplicationsPage() {
                               ) : (
                                 <div style={{ flex: 1 }}>
                                   <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)', display: 'block', marginBottom: '0.25rem' }}>
-                                    Dosis ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit}/ha)
+                                    Dosis ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : getUnit(product?.baseUnit)}/ha)
                                   </label>
                                   <input
                                     type="number"
@@ -655,7 +656,7 @@ export default function ApplicationsPage() {
                               📋 <strong>Rango recomendado para {product.name}:</strong>
                             </div>
                             <div>
-                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product.baseUnit}/ha</strong>
+                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : getUnit(product.baseUnit)}/ha</strong>
                             </div>
                             <div style={{ marginTop: '0.25rem' }}>
                               Cantidad recomendada: <strong>
@@ -831,7 +832,7 @@ export default function ApplicationsPage() {
                 <button 
                   type="button" 
                   className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); }}
                 >
                   Cancelar
                 </button>

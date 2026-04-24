@@ -4,6 +4,8 @@ import { movementsService } from '../services';
 import { Tancada, CreateTancadaInput } from '../types';
 import TancadaWizard from '../features/tancadas/components/TancadaWizard';
 import { convertDoseToBaseUnit } from '../utils/unitConversions';
+import { getBaseUnitAbbr } from '../utils/units';
+import ProductSelector from '../components/ProductSelector';
 
 export default function TancadasPage() {
   const { tancadas, loading, addTancada, updateTancada, deleteTancada } = useTancadas();
@@ -11,6 +13,9 @@ export default function TancadasPage() {
   const { fields } = useFields();
   const { tanks } = useTanks();
   const { lots } = useLots();
+  
+  // Helper para obtener unidad abreviada
+  const getUnit = (baseUnit: string | undefined) => baseUnit ? getBaseUnitAbbr(baseUnit) : '';
   
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -37,6 +42,7 @@ export default function TancadasPage() {
 
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
+  const [originalLotStocks, setOriginalLotStocks] = useState<Record<string, number>>({}); // stock original antes de ajustar
 
   // Resumen modal
   const [showResumen, setShowResumen] = useState(false);
@@ -45,6 +51,8 @@ export default function TancadasPage() {
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
   const [editingTancada, setEditingTancada] = useState<Tancada | null>(null);
+  const [stockAdjustedFor, setStockAdjustedFor] = useState<string | null>(null); // trackear para cual tancada ajustamos el stock
+  
   const [autoDosage] = useState<boolean>(() => {
     const saved = localStorage.getItem('auto-dosage');
     return saved !== null ? saved === 'true' : false;
@@ -56,52 +64,88 @@ export default function TancadasPage() {
     
     let texto = `FECHA: ${formatDate(tancada.date)}\n`;
     texto += `HECTÁREAS: ${totalHectareas} ha\n`;
-    texto += `AGUA: ${tancada.waterAmount} L\n`;
+    texto += `AGUA: ${tancada.waterAmount} ${getUnit('L')}\n`;
     texto += `\nPRODUCTOS:\n`;
     
-    // Los lotes se almacenan en lotsUsed de cada tancadaProduct
+// Los lotes se almacenan en lotsUsed de cada tancadaProduct
     tancada.tancadaProducts?.forEach((tp) => {
+      // Buscar código del producto desde la rela o desde la lista local
+      const productCode = (tp.product as any)?.productCode || products.find(p => p.id === tp.productId)?.productCode || '';
       const producto = tp.product?.name || 'Sin nombre';
-      const cantidad = tp.quantity;
-      const unidad = tp.product?.baseUnit || 'L';
+      const unidad = getUnit(tp.product?.baseUnit) || 'L';
       
-      // Buscar información del lote desde lotsData (del backend) o lista local
-      let totalContainerCapacity = 0;
+      // Usar quantity del producto como fallback
+      const cantidadProducto = tp.quantity || 0;
       
-      // Primer intento: usar lotsData del backend
-      const lotsData = (tp as any).lotsData;
-      if (lotsData && Array.isArray(lotsData) && lotsData.length > 0) {
-        const validLots = lotsData.filter((l: any) => l.containerCapacity);
-        if (validLots.length > 0) {
-          totalContainerCapacity = validLots.reduce((sum: number, l: any) => sum + (l.containerCapacity || 0), 0);
-        }
-      }
+      // Buscar información de lotes: tp.lotsUsed tiene quantityUsed, lotsData tiene containerCapacity
+      let lotsInfo: { lotCode?: string; containerCapacity?: number; quantityUsed?: number }[] = [];
       
-      // Segundo intento: buscar en la lista local de lotes
-      if (totalContainerCapacity === 0 && tp.lotsUsed) {
+      // Primero: procesar lotsUsed que tiene quantityUsed
+      if (tp.lotsUsed) {
         try {
           const lotsUsed = typeof tp.lotsUsed === 'string' ? JSON.parse(tp.lotsUsed) : tp.lotsUsed;
           if (Array.isArray(lotsUsed) && lotsUsed.length > 0) {
-            const lotIds = lotsUsed.map((l: any) => l.lotId);
-            const lotsInfo = lots.filter(l => lotIds.includes(l.id) && l.containerCapacity);
-            if (lotsInfo.length > 0) {
-              totalContainerCapacity = lotsInfo.reduce((sum, l) => sum + (l.containerCapacity || 0), 0);
-            }
+            // Buscar datos adicionales del lote en la lista local
+            lotsInfo = lotsUsed.map((lu: any) => {
+              const lotData = lots.find(l => l.id === lu.lotId);
+              return {
+                lotCode: lotData?.lotCode,
+                containerCapacity: lotData?.containerCapacity,
+                quantityUsed: lu.quantityUsed ?? lu.cantidad ?? lu.cantidadUsada ?? 0
+              };
+            });
           }
         } catch (e) {
           // Ignore parse errors
         }
       }
       
-      // Formato: Producto capacidadUnidad x cantidadUnidad
-      if (totalContainerCapacity > 0) {
-        texto += `• ${producto} x${totalContainerCapacity}${unidad.toLowerCase()} ${cantidad}${unidad.toLowerCase()}\n`;
+      // Segundo: si hay lotsData del backend, combinar con quantity de lotsUsed
+      const lotsData = (tp as any).lotsData;
+      if (lotsData && Array.isArray(lotsData) && lotsData.length > 0) {
+        // Si lotsInfo tiene datos, mejorar con lotsData del backend
+        if (lotsInfo.length > 0) {
+          lotsInfo = lotsInfo.map((li, idx) => {
+            const backendLot = lotsData[idx];
+            return {
+              lotCode: li.lotCode || backendLot?.lotCode,
+              containerCapacity: li.containerCapacity || backendLot?.containerCapacity,
+              quantityUsed: li.quantityUsed // mantener el quantity del frontend
+            };
+          });
+        } else {
+          // Solo lotsData: usar quantity del producto si no hay lotsUsed
+          lotsInfo = lotsData.map((l: any) => ({
+            lotCode: l.lotCode,
+            containerCapacity: l.containerCapacity,
+            quantityUsed: 0 // sin datos de quantity
+          }));
+        }
+      }
+      
+      // Calcular total sumando las cantidades de los lotes, o usar quantity del producto
+      let totalCantidad = lotsInfo.reduce((sum, lot) => sum + (lot.quantityUsed || 0), 0);
+      if (totalCantidad === 0 && cantidadProducto > 0) {
+        totalCantidad = cantidadProducto;
+      }
+      
+      // Mostrar cada lote con su contenedor y cantidad usada
+      if (lotsInfo.length > 0 && totalCantidad > 0) {
+        // Primero mostrar nombre del producto
+        texto += `${productCode} ${producto} Total: ${totalCantidad.toFixed(2)}${unidad.toLowerCase()}\n`;
+        lotsInfo.forEach((lot) => {
+          const lotName = lot.lotCode || `Lote${lot.containerCapacity}L`;
+          const capacidad = lot.containerCapacity || 0;
+          const qtyUsed = lot.quantityUsed || 0;
+          texto += `  • ${productCode}-${lotName}(${capacidad}${unidad.toLowerCase()}): ${qtyUsed.toFixed(2)}${unidad.toLowerCase()}\n`;
+        });
       } else {
-        texto += `• ${producto} ${cantidad} ${unidad}\n`;
+        // Sin lotes o amounts 0: usar cantidad del producto directamente
+        texto += `${productCode} ${producto}: ${cantidadProducto} ${unidad}\n`;
       }
     });
-    
-    // Agregar campos tratados
+      
+      // Agregar campos tratados
     if (tancada.tancadaFields && tancada.tancadaFields.length > 0) {
       texto += `\nCAMPOS:\n`;
       tancada.tancadaFields.forEach((tf) => {
@@ -151,6 +195,7 @@ export default function TancadasPage() {
     setSelectedProducts([]);
     setFieldDistribution([]);
     setEditingId(null);
+    setStockAdjustedFor(null);
   };
 
   // Fetch real stock for all lots
@@ -167,6 +212,7 @@ export default function TancadasPage() {
         }
       }
       setLotStocks(stocks);
+      setOriginalLotStocks(stocks); // Guardar copia original
     };
     
     if (lots.length > 0) {
@@ -174,10 +220,10 @@ export default function TancadasPage() {
     }
   }, [lots]);
 
-  // Open modal and refresh stocks
+  // Open modal for new tancada (restore original stocks)
   const openModal = () => {
     resetForm();
-    fetchLotStocks(); // Refresh stocks when opening modal
+    setLotStocks({ ...originalLotStocks }); // Restore to original stocks
     setShowModal(true);
   };
 
@@ -224,8 +270,28 @@ export default function TancadasPage() {
         hectares: f.hectaresTreated.toString()
       })) || []);
       
-      // Refresh stocks when editing
-      fetchLotStocks();
+      // Solo ajustar stock si es la primera vez que editamos esta tancada
+      if (stockAdjustedFor !== tancada.id) {
+        // Calcular stock original (sin mouvements de esta tancada) desde el stock original + quantities de esta tancada
+        const adjustedStocks = { ...originalLotStocks };
+        tancada.tancadaProducts?.forEach(p => {
+          try {
+            const lotsUsed = typeof p.lotsUsed === 'string' ? JSON.parse(p.lotsUsed) : p.lotsUsed;
+            if (Array.isArray(lotsUsed)) {
+              lotsUsed.forEach((lu: any) => {
+                if (adjustedStocks[lu.lotId] !== undefined) {
+                  adjustedStocks[lu.lotId] += lu.quantityUsed || 0;
+                }
+              });
+            }
+          } catch (e) {
+            // Ignore
+          }
+        });
+        setLotStocks(adjustedStocks);
+        setStockAdjustedFor(tancada.id);
+      }
+      
       setShowModal(true);
     }
   };
@@ -475,6 +541,7 @@ export default function TancadasPage() {
         }
       }
       setLotStocks(stocks);
+      setOriginalLotStocks(stocks);
     };
     fetchLotStocks();
   };
@@ -495,6 +562,7 @@ export default function TancadasPage() {
           }
         }
         setLotStocks(stocks);
+        setOriginalLotStocks(stocks);
       };
       fetchLotStocks();
     }
@@ -560,7 +628,7 @@ export default function TancadasPage() {
                     <span className="card-mobile-label">Productos:</span>
                     {tancada.tancadaProducts?.map((tp, idx) => (
                       <span key={idx} className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
-                        {tp.product?.name}: {tp.quantity}{tp.product?.baseUnit}
+                        {tp.product?.name}: {tp.quantity}{getUnit(tp.product?.baseUnit)}
                       </span>
                     ))}
                   </div>
@@ -568,7 +636,7 @@ export default function TancadasPage() {
                   <div className="card-mobile-row">
                     <div>
                       <span className="card-mobile-label">Agua:</span>
-                      <span>{tancada.waterAmount} L</span>
+                      <span>{tancada.waterAmount} {getUnit('L')}</span>
                     </div>
                     <div>
                       <span className="card-mobile-label">Hás:</span>
@@ -635,12 +703,12 @@ export default function TancadasPage() {
                       {tancada.tancadaProducts?.map((tp, idx) => (
                         <div key={idx}>
                           <span className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
-                            {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {tp.product?.baseUnit}
+                            {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {getUnit(tp.product?.baseUnit)}
                           </span>
                         </div>
                       ))}
                     </td>
-                    <td className="hide-mobile">{tancada.waterAmount} L</td>
+                    <td className="hide-mobile">{tancada.waterAmount} {getUnit('L')}</td>
                     <td>
                       <strong>
                         {tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0} ha
@@ -699,7 +767,7 @@ export default function TancadasPage() {
               <h3 className="modal-title">{editingId ? 'Editar Tancada' : 'Nueva Tancada'}</h3>
               <button 
                 className="btn btn-icon btn-secondary"
-                onClick={() => setShowModal(false)}
+                  onClick={() => { setStockAdjustedFor(null); setShowModal(false); }}
               >
                 ✕
               </button>
@@ -883,18 +951,15 @@ export default function TancadasPage() {
                         marginBottom: '0.75rem'
                       }}>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'flex-end' }}>
-                          <select
-                            className="form-select"
-                            value={sp.productId}
-                            onChange={e => handleProductChange(index, 'productId', e.target.value)}
-                            style={{ flex: 2 }}
-                          >
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
+                          {/* Selector de producto */}
+                          <div style={{ flex: 2 }}>
+                            <ProductSelector
+                              products={products}
+                              selectedProductId={sp.productId}
+                              onSelect={(productId) => handleProductChange(index, 'productId', productId)}
+                              excludedProductIds={selectedProducts.slice(0, index).map(p => p.productId)}
+                            />
+                          </div>
                           <input
                             type="number"
                             step="0.1"
@@ -930,7 +995,7 @@ export default function TancadasPage() {
                                   />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({getUnit(product?.baseUnit)})</label>
                                   <input
                                     type="number"
                                     step="0.01"
@@ -944,7 +1009,7 @@ export default function TancadasPage() {
                             ) : (
                               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
                                 <div style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Dosis por Ha ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product?.baseUnit})</label>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Dosis por Ha ({product?.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : getUnit(product?.baseUnit)})</label>
                                   <input
                                     type="number"
                                     step="0.01"
@@ -955,7 +1020,7 @@ export default function TancadasPage() {
                                   />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                                  <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({getUnit(product?.baseUnit)})</label>
                                   <input
                                     type="number"
                                     step="0.01"
@@ -973,7 +1038,7 @@ export default function TancadasPage() {
                         {/* Cuando autoDosage está desactivado, solo mostrar campo de cantidad */}
                         {!autoDosage && (
                           <div className="form-group">
-                            <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({product?.baseUnit})</label>
+                            <label style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>Cantidad Total ({getUnit(product?.baseUnit)})</label>
                             <input
                               type="number"
                               step="0.01"
@@ -998,7 +1063,7 @@ export default function TancadasPage() {
                               📋 <strong>Rango recomendado para {product.name}:</strong>
                             </div>
                             <div>
-                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product.baseUnit}/ha</strong>
+                              Dosis: <strong>{product.dosePerHectareMin || '-'} - {product.dosePerHectareMax || '-'} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : getUnit(product.baseUnit)}/ha</strong>
                             </div>
                             <div style={{ marginTop: '0.25rem' }}>
                               Cantidad recomendada: <strong>
@@ -1006,11 +1071,11 @@ export default function TancadasPage() {
                                   const doseMin = convertDoseToBaseUnit(product.dosePerHectareMin || 0, product.doseUnit, product.baseUnit);
                                   const doseMax = convertDoseToBaseUnit(product.dosePerHectareMax || 0, product.doseUnit, product.baseUnit);
                                   return `${(totalHa * doseMin).toFixed(2)} - ${(totalHa * doseMax).toFixed(2)}`;
-                                })()} {product.baseUnit}</strong>
+                                })()} {getUnit(product.baseUnit)}</strong>
                             </div>
                             {sp.dosePerHectare && (
                               <div style={{ fontWeight: 'bold', color: 'var(--primary)', marginTop: '0.25rem' }}>
-                                → Actual: {sp.quantity || '0'} {product.baseUnit} ({totalHa} ha × {sp.dosePerHectare} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : product.baseUnit}/ha)
+                                → Actual: {sp.quantity || '0'} {getUnit(product.baseUnit)} ({totalHa} ha × {sp.dosePerHectare} {product.doseUnit && product.doseUnit !== 'BASE_UNIT' ? product.doseUnit : getUnit(product.baseUnit)}/ha)
                               </div>
                             )}
                           </div>
@@ -1036,7 +1101,7 @@ export default function TancadasPage() {
                                     <div key={lotIdx}>
                                       {/* Selected lot info */}
                                       <div style={{ 
-                                        background: '#e3f2fd', 
+                                        background: 'var(--gray-100)', 
                                         padding: '0.4rem', 
                                         borderRadius: 'var(--radius-sm)',
                                         fontSize: '0.7rem',
@@ -1135,7 +1200,7 @@ export default function TancadasPage() {
                 <button 
                   type="button" 
                   className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setStockAdjustedFor(null); setShowModal(false); }}
                 >
                   Cancelar
                 </button>
