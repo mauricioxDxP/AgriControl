@@ -133,12 +133,12 @@ export default function TancadasPage() {
       if (lotsInfo.length > 0 && totalCantidad > 0) {
         // Primero mostrar nombre del producto
         texto += `${productCode} ${producto} Total: ${totalCantidad.toFixed(2)}${unidad.toLowerCase()}\n`;
-        lotsInfo.forEach((lot) => {
-          const lotName = lot.lotCode || `Lote${lot.containerCapacity}L`;
-          const capacidad = lot.containerCapacity || 0;
-          const qtyUsed = lot.quantityUsed || 0;
-          texto += `  • ${productCode}-${lotName}(${capacidad}${unidad.toLowerCase()}): ${qtyUsed.toFixed(2)}${unidad.toLowerCase()}\n`;
-        });
+        // lotsInfo.forEach((lot) => {
+        //   const lotName = lot.lotCode || `Lote${lot.containerCapacity}L`;
+        //   const capacidad = lot.containerCapacity || 0;
+        //   const qtyUsed = lot.quantityUsed || 0;
+        //   texto += `  • ${productCode}-${lotName}(${capacidad}${unidad.toLowerCase()}): ${qtyUsed.toFixed(2)}${unidad.toLowerCase()}\n`;
+        // });
       } else {
         // Sin lotes o amounts 0: usar cantidad del producto directamente
         texto += `${productCode} ${producto}: ${cantidadProducto} ${unidad}\n`;
