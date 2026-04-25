@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
+import { getFullApiUrl } from '../shared/services/request';
 
 type ReportType = 'productos' | 'vencimientos' | 'stock';
 
@@ -304,9 +305,17 @@ export default function ReportsPage() {
         return (
           <div className="report-content">
             <h3 style={{ marginBottom: '1rem', color: 'var(--gray-900)' }}>📊 Resumen de Stock</h3>
-            <p style={{ color: 'var(--gray-600)', marginBottom: '1.5rem' }}>
-              Stock total por producto
-            </p>
+            <div className="flex flex-between" style={{ marginBottom: '1rem' }}>
+              <p style={{ color: 'var(--gray-600)', margin: 0 }}>
+                Stock total por producto
+              </p>
+              <button 
+                className="btn btn-primary"
+                onClick={() => window.open(getFullApiUrl('/reports/stock-verification'), '_blank')}
+              >
+                📥 Descargar PDF
+              </button>
+            </div>
             
             {stockResumen.length === 0 ? (
               <div className="empty-state">

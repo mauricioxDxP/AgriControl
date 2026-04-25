@@ -19,6 +19,22 @@ const getApiBase = (): string => {
 
 export const API_BASE = getApiBase();
 
+// Helper to get full URL for external calls (like PDF downloads)
+export const getFullApiUrl = (path: string): string => {
+  // If API_BASE is already a full URL, use it directly with path
+  if (API_BASE.startsWith('http')) {
+    return `${API_BASE}${path}`;
+  }
+  // API_BASE is relative like '/api', construct full URL
+  if (typeof window !== 'undefined') {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return `http://localhost:3001${path}`;
+    }
+    return `${window.location.protocol}//${window.location.host}${path}`;
+  }
+  return `http://localhost:3001${path}`;
+};
+
 // Debug log in development
 if (import.meta.env.DEV) {
   console.log('API Base URL:', API_BASE);
