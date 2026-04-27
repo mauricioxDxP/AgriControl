@@ -26,6 +26,8 @@ export default function LotsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editModal, setEditModal] = useState(false);
   const [editingLot, setEditingLot] = useState<Lot | null>(null);
+  const [movementModal, setMovementModal] = useState(false);
+  const [selectedLotForMovement, setSelectedLotForMovement] = useState<Lot | null>(null);
   const [filter, setFilter] = useState<FilterType>('all');
   const [expandedLots, setExpandedLots] = useState<Set<string>>(new Set());
   
@@ -51,6 +53,12 @@ export default function LotsPage() {
     supplier: '',
     lotCode: '',
     initialStock: ''
+  });
+
+  const [movementForm, setMovementForm] = useState({
+    type: 'SALIDA' as 'ENTRADA' | 'SALIDA',
+    quantity: '',
+    notes: ''
   });
 
   const resetForm = () => {
@@ -80,6 +88,44 @@ export default function LotsPage() {
       initialStock: lot.initialStock.toString()
     });
     setEditModal(true);
+  };
+
+  const openMovementModal = (lot: Lot) => {
+    setSelectedLotForMovement(lot);
+    setMovementForm({
+      type: 'SALIDA',
+      quantity: '',
+      notes: ''
+    });
+    setMovementModal(true);
+  };
+
+  const handleMovementSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLotForMovement) return;
+
+    const quantity = parseFloat(movementForm.quantity);
+    if (!quantity || quantity <= 0) {
+      alert('La cantidad debe ser mayor a 0');
+      return;
+    }
+
+    try {
+      const { movementsService } = await import('../features/movements/services');
+      await movementsService.create({
+        productId: selectedLotForMovement.productId,
+        lotId: selectedLotForMovement.id,
+        type: movementForm.type,
+        quantity: quantity,
+        notes: movementForm.notes || undefined
+      });
+      setMovementModal(false);
+      setSelectedLotForMovement(null);
+      // Refresh movements - the parent component will re-render via its data hooks
+    } catch (error) {
+      console.error('Error creating movement:', error);
+      alert('Error al crear el movimiento');
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -423,21 +469,27 @@ export default function LotsPage() {
                                 
                                 <div className="card-mobile-row">
                                   <div>
+                                    <span className="card-mobile-label">Stock Inicial:</span>
+                                    <span>{lot.initialStock} {unit}</span>
+                                  </div>
+                                  <div>
                                     <span className="card-mobile-label">Stock:</span>
-                                    <span>
-                                      {lot.containerCapacity 
-                                        ? `${summary.remainingStock.toFixed(1)} / ${lot.initialStock} ${unit}`
-                                        : `${lot.initialStock} ${unit}`
-                                      }
+                                    <span style={{ 
+                                      color: summary.remainingStock < 0 ? 'var(--danger)' : 
+                                             summary.remainingStock === 0 ? 'var(--gray-500)' : 'var(--success)',
+                                      fontWeight: summary.remainingStock < 0 ? 'bold' : 'normal'
+                                    }}>
+                                      {summary.remainingStock.toFixed(1)} {unit}
                                     </span>
                                   </div>
-                                  {lot.containerCapacity && (
-                                    <div>
-                                      <span className="card-mobile-label">Contenedor:</span>
-                                      <span>{(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{unit}</span>
-                                    </div>
-                                  )}
                                 </div>
+                                
+                                {lot.containerCapacity && (
+                                  <div className="card-mobile-section">
+                                    <span className="card-mobile-label">Contenedor:</span>
+                                    <span>{(lot.containerType as any)?.name || lot.containerType} {lot.containerCapacity}{unit}</span>
+                                  </div>
+                                )}
                                 
                                 {lot.expiryDate && (
                                   <div className="card-mobile-section">
@@ -551,6 +603,13 @@ export default function LotsPage() {
                               )}
                               
                               <div className="card-mobile-actions">
+                                <button 
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => openMovementModal(lot)}
+                                  style={{ flex: 1 }}
+                                >
+                                  📥 Movimiento
+                                </button>
                                 {lot.containerCapacity && (
                                   <button 
                                     className="btn btn-secondary btn-sm"
@@ -566,12 +625,6 @@ export default function LotsPage() {
                                   style={{ flex: 1 }}
                                 >
                                   ✏️ Editar
-                                </button>
-                                <button 
-                                  className="btn btn-danger btn-sm"
-                                  onClick={() => handleDelete(lot.id)}
-                                >
-                                  🗑️
                                 </button>
                               </div>
                             </div>
@@ -640,6 +693,7 @@ export default function LotsPage() {
                               <th>Fecha Ingreso</th>
                               <th>Vencimiento</th>
                               <th>Proveedor</th>
+                              <th>Stock Inicial</th>
                               <th>Stock</th>
                               <th>Contenedor</th>
                               <th>Estado</th>
@@ -675,9 +729,20 @@ export default function LotsPage() {
                                     <td>{lot.supplier || '-'}</td>
                                     <td>
                                       {lot.containerCapacity 
-                                        ? `${summary.remainingStock.toFixed(1)} / ${lot.initialStock} ${productUnit}`
+                                        ? `${lot.initialStock} ${productUnit}`
                                         : `${lot.initialStock} ${productUnit}`
                                       }
+                                    </td>
+                                    <td>
+                                      {(() => {
+                                        const stockColor = summary.remainingStock < 0 ? 'var(--danger)' : 
+                                                          summary.remainingStock === 0 ? 'var(--gray-500)' : 'var(--success)';
+                                        return (
+                                          <span style={{ color: stockColor, fontWeight: summary.remainingStock < 0 ? 'bold' : 'normal' }}>
+                                            {summary.remainingStock.toFixed(1)} {productUnit}
+                                          </span>
+                                        );
+                                      })()}
                                     </td>
                                     <td>
                                       {lot.containerCapacity && (
@@ -705,6 +770,14 @@ export default function LotsPage() {
                                       )}
                                     </td>
                                     <td>
+                                      <button 
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={() => openMovementModal(lot)}
+                                        style={{ marginRight: '0.5rem' }}
+                                        title="Crear movimiento"
+                                      >
+                                        📥 Movimiento
+                                      </button>
                                       <button 
                                         className="btn btn-secondary btn-sm"
                                         onClick={() => openEditModal(lot)}
@@ -1006,6 +1079,99 @@ export default function LotsPage() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Guardar Cambios
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Movement Modal */}
+      {movementModal && selectedLotForMovement && (
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Crear Movimiento</h3>
+              <button 
+                className="btn btn-icon btn-secondary"
+                onClick={() => setMovementModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleMovementSubmit}>
+              <div className="modal-body">
+                <div className="form-group">
+                  <label className="form-label">Producto</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={products.find(p => p.id === selectedLotForMovement.productId)?.name || ''} 
+                    disabled 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Lote</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={selectedLotForMovement.lotCode || selectedLotForMovement.id.substring(0, 8)} 
+                    disabled 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Tipo de Movimiento *</label>
+                  <select
+                    className="form-select"
+                    value={movementForm.type}
+                    onChange={e => setMovementForm({ ...movementForm, type: e.target.value as 'ENTRADA' | 'SALIDA' })}
+                    required
+                  >
+                    <option value="ENTRADA">Entrada (+)</option>
+                    <option value="SALIDA">Salida (-)</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">
+                    Cantidad * ({getProductUnit(selectedLotForMovement.productId)})
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="form-input"
+                    value={movementForm.quantity}
+                    onChange={e => setMovementForm({ ...movementForm, quantity: e.target.value })}
+                    required
+                    placeholder="Cantidad"
+                    autoFocus
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Motivo / Notas</label>
+                  <textarea
+                    className="form-input"
+                    value={movementForm.notes}
+                    onChange={e => setMovementForm({ ...movementForm, notes: e.target.value })}
+                    placeholder="Ej: Ajuste de stock, corrección, merma, devolución..."
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary"
+                  onClick={() => setMovementModal(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Crear Movimiento
                 </button>
               </div>
             </form>
