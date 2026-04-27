@@ -311,7 +311,7 @@ export default function ReportsPage() {
               </p>
               <button 
                 className="btn btn-primary"
-                onClick={() => window.open(getFullApiUrl('/reports/stock-verification'), '_blank')}
+                onClick={() => window.open(`${getFullApiUrl('/reports/stock-verification')}?t=${Date.now()}`, '_blank')}
               >
                 📥 Descargar PDF
               </button>
