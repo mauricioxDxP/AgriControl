@@ -29,6 +29,9 @@ export default function MapPicker({ latitude, longitude, onChange, height = '300
   const leafletMapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [mapType, setMapType] = useState<'street' | 'satellite'>('street');
+  const streetLayerRef = useRef<L.TileLayer | null>(null);
+  const satelliteLayerRef = useRef<L.TileLayer | null>(null);
 
   // Inicializar mapa
   useEffect(() => {
@@ -39,9 +42,18 @@ export default function MapPicker({ latitude, longitude, onChange, height = '300
 
     const map = L.map(mapRef.current).setView(center, latitude && longitude ? DEFAULT_ZOOM : 5);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    // Street layer
+    streetLayerRef.current = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    });
+
+    // Satellite layer (ESRI)
+    satelliteLayerRef.current = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; ESRI'
+    });
+
+    // Add street layer by default
+    streetLayerRef.current.addTo(map);
 
     // Marcador inicial si hay coordenadas
     if (latitude && longitude) {
@@ -81,6 +93,20 @@ export default function MapPicker({ latitude, longitude, onChange, height = '300
       markerRef.current = null;
     };
   }, []);
+
+  // Switch map type
+  const handleMapTypeChange = (type: 'street' | 'satellite') => {
+    setMapType(type);
+    if (!leafletMapRef.current) return;
+
+    if (type === 'street') {
+      if (satelliteLayerRef.current) leafletMapRef.current.removeLayer(satelliteLayerRef.current);
+      if (streetLayerRef.current) streetLayerRef.current.addTo(leafletMapRef.current);
+    } else {
+      if (streetLayerRef.current) leafletMapRef.current.removeLayer(streetLayerRef.current);
+      if (satelliteLayerRef.current) satelliteLayerRef.current.addTo(leafletMapRef.current);
+    }
+  };
 
   // Actualizar marcador cuando cambian las props
   useEffect(() => {
@@ -160,6 +186,20 @@ export default function MapPicker({ latitude, longitude, onChange, height = '300
           disabled={isGettingLocation}
         >
           {isGettingLocation ? '📡 Obteniendo...' : '📍 Usar mi ubicación'}
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${mapType === 'street' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => handleMapTypeChange('street')}
+        >
+          🗺️ Calle
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${mapType === 'satellite' ? 'btn-primary' : 'btn-secondary'}`}
+          onClick={() => handleMapTypeChange('satellite')}
+        >
+          🛰️ Satelite
         </button>
         {(latitude && longitude) && (
           <button
