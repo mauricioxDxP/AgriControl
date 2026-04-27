@@ -346,18 +346,8 @@ return result;
     }
   };
 
-  const getTypeBadge = (product: Product) => {
-    const typeName = getTypeName(product);
-    const colors: Record<string, string> = {
-      SEMILLA: 'badge-primary',
-      FERTILIZANTE: 'badge-secondary',
-      PESTICIDA: 'badge-danger',
-      HERBICIDA: 'badge-warning',
-      FUNGICIDA: 'badge-info',
-      INSECTICIDA: 'badge-danger',
-      OTRO: 'badge-secondary'
-    };
-    return colors[typeName] || 'badge-secondary';
+  const getTypeBadge = (_product: Product) => {
+    return 'badge-warning';
   };
 
   if (loading || settingsLoading) {

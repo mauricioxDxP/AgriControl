@@ -243,10 +243,7 @@ interface StockItem {
                       >
                         <div className="card-mobile-header">
                           <span className="card-mobile-date">{item.product.name}</span>
-                          <span className={`card-mobile-badge ${
-                            typeName === 'SEMILLA' ? 'badge-primary' : 
-                            typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
-                          }`}>
+                          <span className="card-mobile-badge badge-warning">
                             {typeName}
                           </span>
                         </div>
@@ -324,10 +321,7 @@ interface StockItem {
                         >
                           <td><strong>{item.product.name}</strong></td>
                           <td>
-                            <span className={`badge ${
-                              typeName === 'SEMILLA' ? 'badge-primary' : 
-                              typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
-                            }`}>
+                            <span className="badge badge-warning">
                               {typeName}
                             </span>
                           </td>

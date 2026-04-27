@@ -625,6 +625,11 @@ body {
   color: var(--white);
 }
 
+.badge-warning {
+  background: #E67E22;
+  color: var(--white);
+}
+
 /* Empty State */
 .empty-state {
   text-align: center;

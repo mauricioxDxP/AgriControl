@@ -339,10 +339,7 @@ export default function ReportsPage() {
                         <tr key={item.product.id}>
                           <td><strong>{item.product.name}</strong></td>
                           <td>
-                            <span className={`badge ${
-                              typeName === 'SEMILLA' ? 'badge-primary' : 
-                              typeName === 'FERTILIZANTE' ? 'badge-secondary' : 'badge-danger'
-                            }`}>
+                            <span className="badge badge-warning">
                               {typeName}
                             </span>
                           </td>
