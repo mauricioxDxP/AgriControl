@@ -16,6 +16,7 @@ const ProductSettingsPage = lazy(() => import('./pages/ProductSettingsPage'));
 const OperationSettingsPage = lazy(() => import('./pages/OperationSettingsPage'));
 const FieldSettingsPage = lazy(() => import('./pages/FieldSettingsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
+const InventoryCountPage = lazy(() => import('./pages/InventoryCountPage'));
 
 // Loading component for lazy loading
 function PageLoader() {
@@ -62,6 +63,7 @@ function App() {
     { path: '/products', label: 'Products', icon: '📦', group: 'inventario' },
     { path: '/lots', label: 'Lotes', icon: '🔖', group: 'inventario' },
     { path: '/stock', label: 'Stock', icon: '📈', group: 'inventario' },
+    { path: '/inventory-count', label: 'Conteo', icon: '📋', group: 'inventario' },
     { path: '/reports', label: 'Reportes', icon: '📊', group: 'inventario' },
     { path: '/settings/products', label: 'Config. Productos', icon: '⚙️', group: 'inventario' },
     // Operations - Terrains/Fields hierarchy (all nested in /terrains)
@@ -199,6 +201,7 @@ function App() {
             <Route path="/settings/operations" element={<OperationSettingsPage />} />
             <Route path="/settings/fields" element={<FieldSettingsPage />} />
             <Route path="/applications" element={<ApplicationsPage />} />
+            <Route path="/inventory-count" element={<InventoryCountPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

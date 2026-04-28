@@ -10,6 +10,7 @@ export { syncService } from '../features/sync/services';
 export { settingsService } from '../features/settings/services';
 export { terrainsService } from '../features/terrains/services';
 export { plantingsService } from '../features/plantings/services';
+export { inventoryCountService } from '../features/inventory-count/services';
 
 // Export request helper
 export { request, API_BASE } from '../shared/services/request';
