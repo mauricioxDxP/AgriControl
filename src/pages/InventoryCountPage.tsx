@@ -346,7 +346,7 @@ export default function InventoryCountPage() {
                         <span className="type-group-name">{typeName}</span>
                         <span className="type-group-count">({lines.length})</span>
                       </div>
-                      <div className="table-container">
+                      <div className="table-container hide-mobile">
                         <table className="table">
                           <thead>
                             <tr>
@@ -420,6 +420,76 @@ export default function InventoryCountPage() {
                             })}
                           </tbody>
                         </table>
+                      </div>
+                      {/* Mobile cards view */}
+                      <div className="mobile-cards">
+                        {lines.map(line => {
+                          const diferencia = line.stockActual - line.stockManual;
+                          const hasDiferencia = line.stockManual > 0 && diferencia !== 0;
+                          const unitAbbr = getBaseUnitAbbr((line as any).product?.baseUnit || '');
+                          return (
+                            <div key={line.id} className="mobile-card" style={{ background: 'var(--gray-50)', borderRadius: '8px', padding: '0.75rem', border: '1px solid var(--border-color)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                                <div>
+                                  <strong>{line.productName}</strong>
+                                  <div className="text-muted" style={{ fontSize: '0.85rem' }}>{line.productCode}</div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>Stock Sistema</div>
+                                  <strong>{line.stockActual.toFixed(2)} {unitAbbr}</strong>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                <label style={{ fontSize: '0.85rem' }}>Manual:</label>
+                                <input
+                                  type="number"
+                                  className="form-input"
+                                  value={line.stockManual === 0 ? '' : line.stockManual}
+                                  placeholder="0"
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                      handleUpdateStockManual(line.id, 0);
+                                    } else {
+                                      const num = parseFloat(val);
+                                      if (!isNaN(num)) {
+                                        handleUpdateStockManual(line.id, num);
+                                      }
+                                    }
+                                  }}
+                                  disabled={line.adjustmentPending}
+                                  style={{ width: '80px' }}
+                                />
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <div style={{ fontSize: '0.9rem' }}>
+                                  Dif: <span style={{ color: !hasDiferencia ? 'var(--gray-500)' : diferencia > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: '600' }}>
+                                    {!hasDiferencia ? '-' : diferencia > 0 ? '-' : '+'}{Math.abs(diferencia).toFixed(2)} {unitAbbr}
+                                  </span>
+                                </div>
+                                {line.adjustmentPending ? (
+                                  <span className="badge badge-warning">⏳ Pendiente</span>
+                                ) : hasDiferencia && line.stockManual > line.stockActual ? (
+                                  <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => openAdjustModal(line, 'INCREASE')}
+                                  >
+                                    + Aumentar
+                                  </button>
+                                ) : hasDiferencia && line.stockManual < line.stockActual ? (
+                                  <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={() => openAdjustModal(line, 'DECREASE')}
+                                  >
+                                    - Reducir
+                                  </button>
+                                ) : (
+                                  <span className="text-muted">✓</span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   ))
