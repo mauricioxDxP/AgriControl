@@ -182,10 +182,14 @@ export default function LotsPage() {
   // Calculate container summary from movements
   const calculateContainers = (lot: Lot): ContainerSummary => {
     const lotMovements = movements.filter(m => m.lotId === lot.id);
-    const consumed = lotMovements
+    const entradas = lotMovements
+      .filter(m => m.type === 'ENTRADA')
+      .reduce((sum, m) => sum + m.quantity, 0);
+    const salidas = lotMovements
       .filter(m => m.type === 'SALIDA')
       .reduce((sum, m) => sum + m.quantity, 0);
-    const remainingStock = lot.initialStock - consumed;
+    const consumed = salidas;
+    const remainingStock = entradas - salidas;
     const capacity = lot.containerCapacity || 1;
     const qtyFull = Math.floor(Math.max(0, remainingStock) / capacity);
     const remainingQuantity = Math.max(0, remainingStock) % capacity;

@@ -175,6 +175,8 @@ export interface Movement {
   type: MovementType;
   quantity: number;
   notes?: string;
+  tancadaId?: string;
+  applicationId?: string;
   createdAt: string;
   updatedAt: string;
   synced: boolean;

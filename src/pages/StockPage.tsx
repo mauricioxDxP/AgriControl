@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProducts, useLots, useMovements } from '../hooks/useData';
 import { settingsService } from '../services';
 import { getBaseUnitAbbr } from '../utils/units';
+import { movementsService } from '../features/movements/services';
 
 interface SettingItem {
   id: string;
@@ -18,6 +19,7 @@ export default function StockPage() {
   const movements = movementsHook.movements;
   
   const [selectedProductId, setSelectedProductId] = useState<string>('');
+  const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; movementId: string | null; error: string | null }>({ show: false, movementId: null, error: null });
   
   // Filtros
   const [productTypes, setProductTypes] = useState<SettingItem[]>([]);
@@ -44,18 +46,23 @@ export default function StockPage() {
   const productLots = lots.filter(l => l.productId === selectedProductId);
   const productMovements = movements.filter(m => m.productId === selectedProductId);
 
-  // Calcular stock por lote (stock inicial - salidas de ese lote)
+  // Calcular stock por lote (entradas - salidas de ese lote)
   const lotsWithStock = useMemo(() => {
     return productLots.map(lot => {
-      // Buscar salidas que usaron este lote específico
-      const salidasDelLote = productMovements
-        .filter(m => m.lotId === lot.id && m.type === 'SALIDA')
+      // Buscar movimientos que usaron este lote específico
+      const movimientosDelLote = productMovements.filter(m => m.lotId === lot.id);
+      const entradasDelLote = movimientosDelLote
+        .filter(m => m.type === 'ENTRADA')
+        .reduce((sum, m) => sum + m.quantity, 0);
+      const salidasDelLote = movimientosDelLote
+        .filter(m => m.type === 'SALIDA')
         .reduce((sum, m) => sum + m.quantity, 0);
       
       return {
         ...lot,
+        entradas: entradasDelLote,
         salidas: salidasDelLote,
-        stockActual: lot.initialStock - salidasDelLote
+        stockActual: entradasDelLote - salidasDelLote
       };
     });
   }, [productLots, productMovements]);
@@ -158,9 +165,65 @@ interface StockItem {
 
   const formatNumber = (num: number) => num.toFixed(2);
 
+  // Verificar si un movimiento puede eliminarse (no tiene tanda ni aplicación)
+  const canDeleteMovement = (movement: any) => {
+    return !movement.tancadaId && !movement.applicationId;
+  };
+
+  // Eliminar movimiento
+  const handleDeleteMovement = async (movementId: string) => {
+    try {
+      setDeleteConfirm({ show: true, movementId, error: null });
+    } catch (error) {
+      setDeleteConfirm({ show: true, movementId, error: 'Error al intentar eliminar' });
+    }
+  };
+
+  // Confirmar eliminación
+  const confirmDeleteMovement = async () => {
+    if (!deleteConfirm.movementId) return;
+    try {
+      await movementsService.delete(deleteConfirm.movementId);
+      setDeleteConfirm({ show: false, movementId: null, error: null });
+      movementsHook.refresh();
+    } catch (error: any) {
+      const message = error?.error || error?.message || 'Error al eliminar';
+      setDeleteConfirm({ ...deleteConfirm, error: message });
+    }
+  };
+
+  // Cancelar eliminación
+  const cancelDeleteMovement = () => {
+    setDeleteConfirm({ show: false, movementId: null, error: null });
+  };
+
   return (
     <div>
       <h2 style={{ marginBottom: '1.5rem' }}>Stock de Productos</h2>
+
+      {/* Modal de confirmación de eliminación */}
+      {deleteConfirm.show && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>¿Eliminar movimiento?</h3>
+            {deleteConfirm.error ? (
+              <p style={{ color: 'var(--danger)' }}>{deleteConfirm.error}</p>
+            ) : (
+              <p>¿Estás seguro de que deseas eliminar este movimiento? Esta acción no se puede deshacer.</p>
+            )}
+            <div className="modal-actions">
+              <button className="btn btn-secondary" onClick={cancelDeleteMovement}>
+                Cancelar
+              </button>
+              {!deleteConfirm.error && (
+                <button className="btn btn-danger" onClick={confirmDeleteMovement}>
+                  Eliminar
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {products.length === 0 && (
         <div className="card">
@@ -563,6 +626,18 @@ interface StockItem {
                       <span>{movement.notes}</span>
                     </div>
                   )}
+                  {canDeleteMovement(movement) && (
+                    <button
+                      className="btn btn-danger btn-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteMovement(movement.id);
+                      }}
+                      style={{ marginTop: '0.5rem', width: '100%' }}
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -578,6 +653,7 @@ interface StockItem {
                     <th>Tipo</th>
                     <th>Cantidad</th>
                     <th>Notas</th>
+                    <th>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -596,6 +672,16 @@ interface StockItem {
                         {movement.type === 'ENTRADA' ? '+' : '-'}{movement.quantity} {getUnit(selectedProduct.baseUnit)}
                       </td>
                       <td>{movement.notes || '-'}</td>
+                      <td>
+                        {canDeleteMovement(movement) && (
+                          <button
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDeleteMovement(movement.id)}
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
