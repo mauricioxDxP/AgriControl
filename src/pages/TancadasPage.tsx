@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useTancadas, useProducts, useFields, useTanks, useLots } from '../hooks/useData';
 import { movementsService } from '../services';
 import { Tancada, CreateTancadaInput } from '../types';
@@ -52,6 +52,10 @@ export default function TancadasPage() {
   const [showWizard, setShowWizard] = useState(false);
   const [editingTancada, setEditingTancada] = useState<Tancada | null>(null);
   const [stockAdjustedFor, setStockAdjustedFor] = useState<string | null>(null); // trackear para cual tancada ajustamos el stock
+  
+  // Dropdown de movimientos por tancada
+  const [openMovementsDropdown, setOpenMovementsDropdown] = useState<string | null>(null);
+  const [tancadaMovements, setTancadaMovements] = useState<Record<string, any[]>>({});
   
   const [autoDosage] = useState<boolean>(() => {
     const saved = localStorage.getItem('auto-dosage');
@@ -572,6 +576,17 @@ export default function TancadasPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  // Fetch movements when dropdown is opened
+  useEffect(() => {
+    if (openMovementsDropdown && !tancadaMovements[openMovementsDropdown]) {
+      movementsService.getByTancada(openMovementsDropdown).then(movements => {
+        setTancadaMovements(prev => ({ ...prev, [openMovementsDropdown]: movements }));
+      }).catch(() => {
+        setTancadaMovements(prev => ({ ...prev, [openMovementsDropdown]: [] }));
+      });
+    }
+  }, [openMovementsDropdown]);
+
   if (loading) {
     return (
       <div className="loading">
@@ -658,6 +673,12 @@ export default function TancadasPage() {
                 
                 <div className="card-mobile-actions">
                   <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setOpenMovementsDropdown(openMovementsDropdown === tancada.id ? null : tancada.id)}
+                  >
+                    📜 Ver Movimientos
+                  </button>
+                  <button 
                     className="btn btn-info btn-sm"
                     onClick={() => abrirResumen(tancada)}
                   >
@@ -676,6 +697,44 @@ export default function TancadasPage() {
                     🗑️
                   </button>
                 </div>
+                
+                {/* Dropdown de movimientos para móvil */}
+                {openMovementsDropdown === tancada.id && (
+                  <div style={{ 
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'var(--gray-50)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.8rem'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Movimientos:</div>
+                    {tancadaMovements[tancada.id] ? (
+                      tancadaMovements[tancada.id].length > 0 ? (
+                        tancadaMovements[tancada.id].map((mov, idx) => (
+                          <div key={idx} style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: idx < tancadaMovements[tancada.id].length - 1 ? '1px solid var(--gray-200)' : 'none' }}>
+                            <div style={{ fontWeight: 'bold' }}>
+                              {mov.type === 'ENTRADA' ? '📥' : '📤'} {mov.product?.name || 'Producto'}
+                            </div>
+                            <div style={{ color: 'var(--gray-600)', fontSize: '0.75rem' }}>
+                              Cantidad: <strong>{mov.quantity}</strong> {mov.product?.baseUnit ? getUnit(mov.product.baseUnit) : ''}
+                            </div>
+                            {mov.lot?.lotCode && (
+                              <div style={{ color: 'var(--gray-500)', fontSize: '0.7rem' }}>
+                                Lote: {mov.lot.lotCode}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: 'var(--gray-500)' }}>Sin movimientos</div>
+                      )
+                    ) : (
+                      <div style={{ textAlign: 'center' }}>
+                        <div className="spinner-small"></div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -696,62 +755,114 @@ export default function TancadasPage() {
               </thead>
               <tbody>
                 {tancadas.map(tancada => (
-                  <tr key={tancada.id}>
-                    <td>{formatDate(tancada.date)}</td>
-                    <td>{tancada.tankCapacity} L</td>
-                    <td>
-                      {tancada.tancadaProducts?.map((tp, idx) => (
-                        <div key={idx}>
-                          <span className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
-                            {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {getUnit(tp.product?.baseUnit)}
-                          </span>
+                  <Fragment key={tancada.id}>
+                    <tr>
+                      <td>{formatDate(tancada.date)}</td>
+                      <td>{tancada.tankCapacity} L</td>
+                      <td>
+                        {tancada.tancadaProducts?.map((tp, idx) => (
+                          <div key={idx}>
+                            <span className="badge badge-primary" style={{ marginRight: '0.25rem', marginBottom: '0.25rem' }}>
+                              {tp.product?.name || '-'}{tp.concentration ? ` (${tp.concentration}%)` : ''}: {tp.quantity} {getUnit(tp.product?.baseUnit)}
+                            </span>
+                          </div>
+                        ))}
+                      </td>
+                      <td className="hide-mobile">{tancada.waterAmount} {getUnit('L')}</td>
+                      <td>
+                        <strong>
+                          {tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0} ha
+                        </strong>
+                      </td>
+                      <td className="hide-mobile">
+                        {tancada.tancadaFields?.map((tf, idx) => (
+                          <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                            <span className="badge badge-info" style={{ marginRight: '0.25rem' }}>
+                              {tf.field?.name || 'Campo'}
+                            </span>
+                            <span style={{ fontSize: '0.75rem' }}>
+                              {tf.hectaresTreated}/{tf.field?.area || tf.hectaresTreated} ha
+                            </span>
+                          </div>
+                        ))}
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className={`btn btn-sm ${openMovementsDropdown === tancada.id ? 'btn-primary' : 'btn-info'}`}
+                            onClick={() => setOpenMovementsDropdown(openMovementsDropdown === tancada.id ? null : tancada.id)}
+                            title="Ver Movimientos"
+                          >
+                            {openMovementsDropdown === tancada.id ? '▲' : '📜'}
+                          </button>
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => abrirResumen(tancada)}
+                            title="Resumen"
+                          >
+                            📋
+                          </button>
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEdit(tancada)}
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(tancada.id)}
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
                         </div>
-                      ))}
-                    </td>
-                    <td className="hide-mobile">{tancada.waterAmount} {getUnit('L')}</td>
-                    <td>
-                      <strong>
-                        {tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0} ha
-                      </strong>
-                    </td>
-                    <td className="hide-mobile">
-                      {tancada.tancadaFields?.map((tf, idx) => (
-                        <div key={idx} style={{ marginBottom: '0.25rem' }}>
-                          <span className="badge badge-info" style={{ marginRight: '0.25rem' }}>
-                            {tf.field?.name || 'Campo'}
-                          </span>
-                          <span style={{ fontSize: '0.75rem' }}>
-                            {tf.hectaresTreated}/{tf.field?.area || tf.hectaresTreated} ha
-                          </span>
-                        </div>
-                      ))}
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="btn btn-info btn-sm"
-                          onClick={() => abrirResumen(tancada)}
-                          title="Resumen"
-                        >
-                          📋
-                        </button>
-                        <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEdit(tancada)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(tancada.id)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {openMovementsDropdown === tancada.id && (
+                      <tr>
+                        <td colSpan={7} style={{ background: 'var(--gray-50)', padding: '1rem' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '0.75rem' }}>📜 Movimientos de la Tancada</div>
+                          {tancadaMovements[tancada.id] ? (
+                            tancadaMovements[tancada.id].length > 0 ? (
+                              <table className="table" style={{ background: 'var(--white)' }}>
+                                <thead>
+                                  <tr>
+                                    <th>Tipo</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Lote</th>
+                                    <th>Fecha</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {tancadaMovements[tancada.id].map((mov, idx) => (
+                                    <tr key={idx}>
+                                      <td>
+                                        <span className={`badge ${mov.type === 'ENTRADA' ? 'badge-success' : 'badge-warning'}`}>
+                                          {mov.type === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}
+                                        </span>
+                                      </td>
+                                      <td>{mov.product?.name || '-'}</td>
+                                      <td><strong>{mov.quantity}</strong> {mov.product?.baseUnit ? getUnit(mov.product.baseUnit) : ''}</td>
+                                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>{mov.lot?.lotCode || '-'}</td>
+                                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{mov.createdAt ? new Date(mov.createdAt).toLocaleString() : '-'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <div style={{ color: 'var(--gray-500)', textAlign: 'center', padding: '1rem' }}>Sin movimientos</div>
+                            )
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                              <div className="spinner-small"></div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

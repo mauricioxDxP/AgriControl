@@ -9,6 +9,8 @@ export const movementsService = {
   
   getByLot: (lotId: string) => request<Movement[]>(`/movements/lot/${lotId}`),
   
+  getByTancada: (tancadaId: string) => request<Movement[]>(`/movements/tancada/${tancadaId}`),
+  
   getStock: (productId: string) => request<{ productId: string; stock: number }>(`/movements/stock/${productId}`),
   
   getLotStock: (lotId: string) => request<{ lotId: string; stock: number }>(`/movements/stock/lot/${lotId}`),
