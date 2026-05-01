@@ -123,8 +123,17 @@ export default function ReportsPage() {
   }, [lotsWithStock]);
 
   // ========== RESUMEN STOCK ==========
+  interface StockResumenItem {
+    product: any;
+    stockTotal: number;
+    lotsCount: number;
+  }
+  
   const stockResumen = useMemo(() => {
-    return products.map(product => {
+    // Group products by type
+    const byType = new Map<string, StockResumenItem[]>();
+    
+    const stockItems: StockResumenItem[] = products.map(product => {
       const productLots = lotsWithStock.filter(l => l.productId === product.id);
       const stockTotal = productLots.reduce((sum, l) => sum + l.stockDisponible, 0);
       
@@ -133,7 +142,29 @@ export default function ReportsPage() {
         stockTotal,
         lotsCount: productLots.length
       };
-    }).filter(s => s.stockTotal > 0).sort((a, b) => b.stockTotal - a.stockTotal);
+    }).filter(s => s.stockTotal >= 0); // Show all, even 0 stock
+
+    stockItems.forEach(item => {
+      const productType = item.product.type?.name || 'OTRO';
+      if (!byType.has(productType)) byType.set(productType, []);
+      byType.get(productType)!.push(item);
+    });
+    
+    // Sort items within each type alphabetically by product name
+    byType.forEach(items => items.sort((a, b) => a.product.name.localeCompare(b.product.name)));
+    
+    // Sort types in a natural agricultural order
+    const typeOrder = ['FUNGICIDA', 'HERBICIDA', 'INSECTICIDA', 'PESTICIDA', 'SEMILLA', 'FERTILIZANTE', 'OTRO'];
+    const sortedTypes = Array.from(byType.keys()).sort((a, b) => {
+      const indexA = typeOrder.indexOf(a);
+      const indexB = typeOrder.indexOf(b);
+      if (indexA === -1 && indexB === -1) return a.localeCompare(b);
+      if (indexA === -1) return 1;
+      if (indexB === -1) return -1;
+      return indexA - indexB;
+    });
+    
+    return { byType, sortedTypes };
   }, [products, lotsWithStock]);
 
   const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString();
@@ -317,44 +348,55 @@ export default function ReportsPage() {
               </button>
             </div>
             
-            {stockResumen.length === 0 ? (
+            {stockResumen.sortedTypes.length === 0 ? (
               <div className="empty-state">
                 <p>No hay stock disponible</p>
               </div>
             ) : (
-              <div className="table-container">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th>Tipo</th>
-                      <th>Lotes</th>
-                      <th>Stock Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stockResumen.map(item => {
-                      const typeName = item.product.type?.name || String(item.product.typeId || 'OTRO');
-                      return (
-                        <tr key={item.product.id}>
-                          <td><strong>{item.product.name}</strong></td>
-                          <td>
-                            <span className="badge badge-warning">
-                              {typeName}
-                            </span>
-                          </td>
-                          <td>{item.lotsCount}</td>
-                          <td>
-                            <strong style={{ color: 'var(--primary)' }}>
-                              {item.stockTotal.toFixed(2)} {item.product.baseUnit}
-                            </strong>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+              stockResumen.sortedTypes.map(typeName => {
+                const items = stockResumen.byType.get(typeName)!;
+                return (
+                  <div key={typeName} style={{ marginBottom: '1.5rem' }}>
+                    <h4 className="report-group-title" style={{ 
+                      background: 'var(--primary)', 
+                      color: 'white',
+                      padding: '0.5rem 1rem',
+                      borderRadius: 'var(--radius)',
+                      marginBottom: '0.75rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <span>📋 {typeName}</span>
+                      <span style={{ fontWeight: 400 }}>{items.length} productos</span>
+                    </h4>
+                    <div className="table-container">
+                      <table className="table">
+                        <thead>
+                          <tr>
+                            <th>Producto</th>
+                            <th>Lotes</th>
+                            <th>Stock Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {items.map(item => (
+                            <tr key={item.product.id}>
+                              <td><strong>{item.product.name}</strong></td>
+                              <td>{item.lotsCount}</td>
+                              <td>
+                                <strong style={{ color: item.stockTotal <= 0 ? 'var(--danger)' : 'var(--primary)' }}>
+                                  {item.stockTotal.toFixed(2)} {item.product.baseUnit}
+                                </strong>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         );
