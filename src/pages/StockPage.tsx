@@ -18,6 +18,16 @@ export default function StockPage() {
   const lots = lotsHook.lots;
   const movements = movementsHook.movements;
   
+  // Escuchar eventos de cambios en tancadas/aplicaciones para actualizar stock
+  useEffect(() => {
+    const handleStockUpdate = () => {
+      movementsHook.refresh();
+    };
+    
+    window.addEventListener('stock-needs-refresh', handleStockUpdate);
+    return () => window.removeEventListener('stock-needs-refresh', handleStockUpdate);
+  }, [movementsHook.refresh]);
+  
   const [selectedProductId, setSelectedProductId] = useState<string>('');
   const [deleteConfirm, setDeleteConfirm] = useState<{ show: boolean; movementId: string | null; error: string | null }>({ show: false, movementId: null, error: null });
   

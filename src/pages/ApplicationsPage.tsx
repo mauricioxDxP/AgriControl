@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useApplications, useFields, useLots, useProducts, useDosageCalculation } from '../hooks/useData';
 import { movementsService } from '../services';
 import { ApplicationType, Application } from '../types';
@@ -43,6 +43,10 @@ export default function ApplicationsPage() {
     return saved !== null ? saved === 'true' : false;
   });
 
+  // Dropdown de movimientos por aplicación
+  const [openMovementsDropdown, setOpenMovementsDropdown] = useState<string | null>(null);
+  const [applicationMovements, setApplicationMovements] = useState<Record<string, any[]>>({});
+
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
 
@@ -77,6 +81,17 @@ export default function ApplicationsPage() {
       fetchLotStocks();
     }
   }, [lots]);
+
+  // Fetch movements when dropdown is opened
+  useEffect(() => {
+    if (openMovementsDropdown && !applicationMovements[openMovementsDropdown]) {
+      movementsService.getByApplication(openMovementsDropdown).then(movements => {
+        setApplicationMovements(prev => ({ ...prev, [openMovementsDropdown]: movements }));
+      }).catch(() => {
+        setApplicationMovements(prev => ({ ...prev, [openMovementsDropdown]: [] }));
+      });
+    }
+  }, [openMovementsDropdown]);
 
   // Get selected field
   const selectedField = fields.find(f => f.id === formData.fieldId);
@@ -239,6 +254,9 @@ export default function ApplicationsPage() {
       }
     });
     
+    console.log('[handleSubmit] selectedProducts:', JSON.stringify(selectedProducts, null, 2));
+    console.log('[handleSubmit] allLots collected:', JSON.stringify(allLots, null, 2));
+    
     const appData = {
       fieldId: formData.fieldId,
       type: formData.type,
@@ -255,16 +273,22 @@ export default function ApplicationsPage() {
           quantityUsed: l.quantityUsed
         }))
       })),
-      lots: allLots  // Enviar lotes a nivel raíz para que el backend los procese
+      lots: allLots
     };
-
-    console.log('Submitting application:', appData);
+    
+    console.log('[handleSubmit] appData:', JSON.stringify(appData, null, 2));
 
     if (editingApplication) {
       await updateApplication(editingApplication.id, appData);
+      // Refrescar movimientos de la aplicación editada
+      const updatedMovements = await movementsService.getByApplication(editingApplication.id);
+      setApplicationMovements(prev => ({ ...prev, [editingApplication.id]: updatedMovements }));
     } else {
       await addApplication(appData);
     }
+
+    // Notificar a StockPage que actualice
+    window.dispatchEvent(new Event('stock-needs-refresh'));
 
     setShowModal(false);
     setEditingApplication(null);
@@ -289,6 +313,8 @@ export default function ApplicationsPage() {
   const handleDelete = async (id: string) => {
     if (confirm('¿Estás seguro de eliminar esta aplicación?')) {
       await deleteApplication(id);
+      // Notificar a StockPage que actualice
+      window.dispatchEvent(new Event('stock-needs-refresh'));
     }
   };
 
@@ -428,6 +454,12 @@ export default function ApplicationsPage() {
                 <div className="card-mobile-actions">
                   <button 
                     className="btn btn-secondary btn-sm"
+                    onClick={() => setOpenMovementsDropdown(openMovementsDropdown === app.id ? null : app.id)}
+                  >
+                    📜 Ver Movimientos
+                  </button>
+                  <button 
+                    className="btn btn-secondary btn-sm"
                     onClick={() => { setEditingApplication(app); setShowWizard(true); }}
                     style={{ width: '100%', marginBottom: '0.5rem' }}
                   >
@@ -441,6 +473,44 @@ export default function ApplicationsPage() {
                     🗑️ Eliminar
                   </button>
                 </div>
+                
+                {/* Dropdown de movimientos para móvil */}
+                {openMovementsDropdown === app.id && (
+                  <div style={{ 
+                    marginTop: '0.5rem',
+                    padding: '0.75rem',
+                    background: 'var(--gray-50)',
+                    borderRadius: 'var(--radius)',
+                    fontSize: '0.8rem'
+                  }}>
+                    <div style={{ fontWeight: 'bold', marginBottom: '0.5rem' }}>Movimientos:</div>
+                    {applicationMovements[app.id] ? (
+                      applicationMovements[app.id].length > 0 ? (
+                        applicationMovements[app.id].map((mov, idx) => (
+                          <div key={idx} style={{ marginBottom: '0.5rem', paddingBottom: '0.5rem', borderBottom: idx < applicationMovements[app.id].length - 1 ? '1px solid var(--gray-200)' : 'none' }}>
+                            <div style={{ fontWeight: 'bold' }}>
+                              {mov.type === 'ENTRADA' ? '📥' : '📤'} {mov.product?.name || 'Producto'}
+                            </div>
+                            <div style={{ color: 'var(--gray-600)', fontSize: '0.75rem' }}>
+                              Cantidad: <strong>{mov.quantity}</strong> {mov.product?.baseUnit ? getUnit(mov.product.baseUnit) : ''}
+                            </div>
+                            {mov.lot?.lotCode && (
+                              <div style={{ color: 'var(--gray-500)', fontSize: '0.7rem' }}>
+                                Lote: {mov.lot.lotCode}
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ color: 'var(--gray-500)' }}>Sin movimientos</div>
+                      )
+                    ) : (
+                      <div style={{ textAlign: 'center' }}>
+                        <div className="spinner-small"></div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -460,47 +530,99 @@ export default function ApplicationsPage() {
               </thead>
               <tbody>
                 {applications.map(app => (
-                  <tr key={app.id}>
-                    <td>{formatDate(app.date)}</td>
-                    <td>
-                      <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
-                        {app.type}
-                      </span>
-                    </td>
-                    <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
-                    <td>
-                      {app.applicationProducts?.map((ap, idx) => {
-                        const doseUnitLabel = ap.product?.doseUnit && ap.product.doseUnit !== 'BASE_UNIT' ? ap.product.doseUnit : getUnit(ap.product?.baseUnit);
-                        return (
-                        <div key={idx} style={{ marginBottom: '0.25rem' }}>
-                          <span className="badge badge-primary">
-                            {ap.product?.name || '-'}
-                            {ap.dosePerHectare ? ` ${ap.dosePerHectare}${doseUnitLabel}/ha` : ''}
-                            : {ap.quantityUsed} {getUnit(ap.product?.baseUnit)}
-                          </span>
+                  <Fragment key={app.id}>
+                    <tr>
+                      <td>{formatDate(app.date)}</td>
+                      <td>
+                        <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
+                          {app.type}
+                        </span>
+                      </td>
+                      <td>{fields.find(f => f.id === app.fieldId)?.name || '-'}</td>
+                      <td>
+                        {app.applicationProducts?.map((ap, idx) => {
+                          const doseUnitLabel = ap.product?.doseUnit && ap.product.doseUnit !== 'BASE_UNIT' ? ap.product.doseUnit : getUnit(ap.product?.baseUnit);
+                          return (
+                          <div key={idx} style={{ marginBottom: '0.25rem' }}>
+                            <span className="badge badge-primary">
+                              {ap.product?.name || '-'}
+                              {ap.dosePerHectare ? ` ${ap.dosePerHectare}${doseUnitLabel}/ha` : ''}
+                              : {ap.quantityUsed} {getUnit(ap.product?.baseUnit)}
+                            </span>
+                          </div>
+                        )})}
+                      </td>
+                      <td className="hide-mobile">{app.waterAmount ? `${app.waterAmount}L` : '-'}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <button 
+                            className={`btn btn-sm ${openMovementsDropdown === app.id ? 'btn-primary' : 'btn-info'}`}
+                            onClick={() => setOpenMovementsDropdown(openMovementsDropdown === app.id ? null : app.id)}
+                            title="Ver Movimientos"
+                          >
+                            {openMovementsDropdown === app.id ? '▲' : '📜'}
+                          </button>
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEdit(app)}
+                            title="Editar"
+                          >
+                            ✏️
+                          </button>
+                          <button 
+                            className="btn btn-danger btn-sm"
+                            onClick={() => handleDelete(app.id)}
+                            title="Eliminar"
+                          >
+                            🗑️
+                          </button>
                         </div>
-                      )})}
-                    </td>
-                    <td className="hide-mobile">{app.waterAmount ? `${app.waterAmount}L` : '-'}</td>
-                    <td>
-                      <div className="action-buttons">
-                        <button 
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleEdit(app)}
-                          title="Editar"
-                        >
-                          ✏️
-                        </button>
-                        <button 
-                          className="btn btn-danger btn-sm"
-                          onClick={() => handleDelete(app.id)}
-                          title="Eliminar"
-                        >
-                          🗑️
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      </td>
+                    </tr>
+                    {openMovementsDropdown === app.id && (
+                      <tr>
+                        <td colSpan={6} style={{ background: 'var(--gray-50)', padding: '1rem' }}>
+                          <div style={{ fontWeight: 'bold', marginBottom: '0.75rem' }}>📜 Movimientos de la Aplicación</div>
+                          {applicationMovements[app.id] ? (
+                            applicationMovements[app.id].length > 0 ? (
+                              <table className="table" style={{ background: 'var(--white)' }}>
+                                <thead>
+                                  <tr>
+                                    <th>Tipo</th>
+                                    <th>Producto</th>
+                                    <th>Cantidad</th>
+                                    <th>Lote</th>
+                                    <th>Fecha</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {applicationMovements[app.id].map((mov, idx) => (
+                                    <tr key={idx}>
+                                      <td>
+                                        <span className={`badge ${mov.type === 'ENTRADA' ? 'badge-success' : 'badge-warning'}`}>
+                                          {mov.type === 'ENTRADA' ? '📥 Entrada' : '📤 Salida'}
+                                        </span>
+                                      </td>
+                                      <td>{mov.product?.name || '-'}</td>
+                                      <td><strong>{mov.quantity}</strong> {mov.product?.baseUnit ? getUnit(mov.product.baseUnit) : ''}</td>
+                                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>{mov.lot?.lotCode || '-'}</td>
+                                      <td style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>{mov.createdAt ? new Date(mov.createdAt).toLocaleString() : '-'}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            ) : (
+                              <div style={{ color: 'var(--gray-500)', textAlign: 'center', padding: '1rem' }}>Sin movimientos</div>
+                            )
+                          ) : (
+                            <div style={{ textAlign: 'center', padding: '1rem' }}>
+                              <div className="spinner-small"></div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
@@ -852,10 +974,15 @@ export default function ApplicationsPage() {
         onSubmit={async (data) => {
           if (editingApplication) {
             await updateApplication(editingApplication.id, data);
+            // Refrescar movimientos de la aplicación editada
+            const updatedMovements = await movementsService.getByApplication(editingApplication.id);
+            setApplicationMovements(prev => ({ ...prev, [editingApplication.id]: updatedMovements }));
           } else {
             await addApplication(data);
           }
           fetchLotStocks();
+          // Notificar a StockPage que actualice
+          window.dispatchEvent(new Event('stock-needs-refresh'));
           setEditingApplication(null);
         }}
         products={products}

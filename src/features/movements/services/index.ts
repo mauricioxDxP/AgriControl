@@ -11,6 +11,8 @@ export const movementsService = {
   
   getByTancada: (tancadaId: string) => request<Movement[]>(`/movements/tancada/${tancadaId}`),
   
+  getByApplication: (applicationId: string) => request<Movement[]>(`/movements/application/${applicationId}`, { useCache: false }),
+  
   getStock: (productId: string) => request<{ productId: string; stock: number }>(`/movements/stock/${productId}`),
   
   getLotStock: (lotId: string) => request<{ lotId: string; stock: number }>(`/movements/stock/lot/${lotId}`),

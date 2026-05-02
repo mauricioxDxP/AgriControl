@@ -530,6 +530,9 @@ export default function TancadasPage() {
       await addTancada(tancadaData);
     }
 
+    // Notificar a StockPage que actualice
+    window.dispatchEvent(new Event('stock-needs-refresh'));
+
     setShowModal(false);
     resetForm();
     
@@ -569,6 +572,9 @@ export default function TancadasPage() {
         setOriginalLotStocks(stocks);
       };
       fetchLotStocks();
+      
+      // Notificar a StockPage que actualice
+      window.dispatchEvent(new Event('stock-needs-refresh'));
     }
   };
 
@@ -1419,6 +1425,8 @@ export default function TancadasPage() {
             await addTancada(data);
           }
           fetchLotStocks();
+          // Notificar a StockPage que actualice
+          window.dispatchEvent(new Event('stock-needs-refresh'));
           setEditingTancada(null);
         }}
         products={products}
