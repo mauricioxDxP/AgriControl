@@ -5,6 +5,7 @@ import { Tancada, CreateTancadaInput } from '../types';
 import TancadaWizard from '../features/tancadas/components/TancadaWizard';
 import { convertDoseToBaseUnit } from '../utils/unitConversions';
 import { getBaseUnitAbbr } from '../utils/units';
+import { getFullApiUrl } from '../shared/services/request';
 import ProductSelector from '../components/ProductSelector';
 
 export default function TancadasPage() {
@@ -72,24 +73,26 @@ export default function TancadasPage() {
     texto += `\nPRODUCTOS:\n`;
     
 // Los lotes se almacenan en lotsUsed de cada tancadaProduct
+    // Calcular max width para alinear los totales (codigo + nombre de producto)
+    const maxProductLen = 35; // maximo para codigo + nombre
+    const formatProductLine = (code: string, name: string, total: number, unit: string) => {
+      const productStr = `${code} ${name}`.substring(0, maxProductLen);
+      const padded = productStr.padEnd(maxProductLen);
+      return `${padded}Total: ${total.toFixed(2)}${unit.toLowerCase()}`;
+    };
+    
     tancada.tancadaProducts?.forEach((tp) => {
-      // Buscar código del producto desde la rela o desde la lista local
       const productCode = (tp.product as any)?.productCode || products.find(p => p.id === tp.productId)?.productCode || '';
       const producto = tp.product?.name || 'Sin nombre';
       const unidad = getUnit(tp.product?.baseUnit) || 'L';
-      
-      // Usar quantity del producto como fallback
       const cantidadProducto = tp.quantity || 0;
       
-      // Buscar información de lotes: tp.lotsUsed tiene quantityUsed, lotsData tiene containerCapacity
       let lotsInfo: { lotCode?: string; containerCapacity?: number; quantityUsed?: number }[] = [];
       
-      // Primero: procesar lotsUsed que tiene quantityUsed
       if (tp.lotsUsed) {
         try {
           const lotsUsed = typeof tp.lotsUsed === 'string' ? JSON.parse(tp.lotsUsed) : tp.lotsUsed;
           if (Array.isArray(lotsUsed) && lotsUsed.length > 0) {
-            // Buscar datos adicionales del lote en la lista local
             lotsInfo = lotsUsed.map((lu: any) => {
               const lotData = lots.find(l => l.id === lu.lotId);
               return {
@@ -99,53 +102,38 @@ export default function TancadasPage() {
               };
             });
           }
-        } catch (e) {
-          // Ignore parse errors
-        }
+        } catch (e) {}
       }
       
-      // Segundo: si hay lotsData del backend, combinar con quantity de lotsUsed
       const lotsData = (tp as any).lotsData;
       if (lotsData && Array.isArray(lotsData) && lotsData.length > 0) {
-        // Si lotsInfo tiene datos, mejorar con lotsData del backend
         if (lotsInfo.length > 0) {
           lotsInfo = lotsInfo.map((li, idx) => {
             const backendLot = lotsData[idx];
             return {
               lotCode: li.lotCode || backendLot?.lotCode,
               containerCapacity: li.containerCapacity || backendLot?.containerCapacity,
-              quantityUsed: li.quantityUsed // mantener el quantity del frontend
+              quantityUsed: li.quantityUsed
             };
           });
         } else {
-          // Solo lotsData: usar quantity del producto si no hay lotsUsed
           lotsInfo = lotsData.map((l: any) => ({
             lotCode: l.lotCode,
             containerCapacity: l.containerCapacity,
-            quantityUsed: 0 // sin datos de quantity
+            quantityUsed: 0
           }));
         }
       }
       
-      // Calcular total sumando las cantidades de los lotes, o usar quantity del producto
       let totalCantidad = lotsInfo.reduce((sum, lot) => sum + (lot.quantityUsed || 0), 0);
       if (totalCantidad === 0 && cantidadProducto > 0) {
         totalCantidad = cantidadProducto;
       }
       
-      // Mostrar cada lote con su contenedor y cantidad usada
       if (lotsInfo.length > 0 && totalCantidad > 0) {
-        // Primero mostrar nombre del producto
-        texto += `${productCode} ${producto} Total: ${totalCantidad.toFixed(2)}${unidad.toLowerCase()}\n`;
-        // lotsInfo.forEach((lot) => {
-        //   const lotName = lot.lotCode || `Lote${lot.containerCapacity}L`;
-        //   const capacidad = lot.containerCapacity || 0;
-        //   const qtyUsed = lot.quantityUsed || 0;
-        //   texto += `  • ${productCode}-${lotName}(${capacidad}${unidad.toLowerCase()}): ${qtyUsed.toFixed(2)}${unidad.toLowerCase()}\n`;
-        // });
+        texto += formatProductLine(productCode, producto, totalCantidad, unidad) + '\n';
       } else {
-        // Sin lotes o amounts 0: usar cantidad del producto directamente
-        texto += `${productCode} ${producto}: ${cantidadProducto} ${unidad}\n`;
+        texto += formatProductLine(productCode, producto, cantidadProducto, unidad) + '\n';
       }
     });
       
@@ -1409,6 +1397,12 @@ export default function TancadasPage() {
                 onClick={() => setShowResumen(false)}
               >
                 Cerrar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => window.open(`${getFullApiUrl(`/reports/tancada/${resumenTancada.id}?t=${Date.now()}`)}`, '_blank')}
+              >
+                🖨️ Imprimir
               </button>
               </div>
             </div>

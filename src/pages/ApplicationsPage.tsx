@@ -5,6 +5,7 @@ import { ApplicationType, Application } from '../types';
 import ApplicationWizard from '../features/applications/components/ApplicationWizard';
 import { convertDoseToBaseUnit } from '../utils/unitConversions';
 import { getBaseUnitAbbr } from '../utils/units';
+import { getFullApiUrl } from '../shared/services/request';
 import ProductSelector from '../components/ProductSelector';
 
 export default function ApplicationsPage() {
@@ -46,6 +47,10 @@ export default function ApplicationsPage() {
   // Dropdown de movimientos por aplicación
   const [openMovementsDropdown, setOpenMovementsDropdown] = useState<string | null>(null);
   const [applicationMovements, setApplicationMovements] = useState<Record<string, any[]>>({});
+  
+  // Resumen modal
+  const [showResumen, setShowResumen] = useState(false);
+  const [resumenApplication, setResumenApplication] = useState<Application | null>(null);
 
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
@@ -365,6 +370,45 @@ export default function ApplicationsPage() {
     return new Date(dateStr).toLocaleDateString();
   };
 
+  // Generar texto de resumen para una aplicación
+  const generarResumenTexto = (app: Application): string => {
+    let texto = `FECHA: ${formatDate(app.date)}\n`;
+    texto += `TIPO: ${app.type}\n`;
+    texto += `CAMPO: ${fields.find(f => f.id === app.fieldId)?.name || '-'}\n`;
+    
+    if (app.waterAmount) {
+      texto += `AGUA: ${app.waterAmount} ${getUnit('L')}\n`;
+    }
+    
+    if (app.notes) {
+      texto += `NOTAS: ${app.notes}\n`;
+    }
+    
+    texto += `\nPRODUCTOS:\n`;
+    
+    const maxProductLen = 35;
+    const formatProductLine = (code: string, name: string, total: number, unit: string) => {
+      const productStr = `${code} ${name}`.substring(0, maxProductLen);
+      const padded = productStr.padEnd(maxProductLen);
+      return `${padded}Total: ${total.toFixed(2)} ${unit}`;
+    };
+    
+    app.applicationProducts?.forEach((ap) => {
+      const productCode = (ap.product as any)?.productCode || products.find(p => p.id === ap.productId)?.productCode || '';
+      const producto = ap.product?.name || 'Sin nombre';
+      const unidad = getUnit(ap.product?.baseUnit) || 'L';
+      
+      texto += formatProductLine(productCode, producto, ap.quantityUsed, unidad) + '\n';
+    });
+    
+    return texto;
+  };
+
+  const abrirResumen = (app: Application) => {
+    setResumenApplication(app);
+    setShowResumen(true);
+  };
+
   if (loading) {
     return (
       <div className="loading">
@@ -457,6 +501,13 @@ export default function ApplicationsPage() {
                     onClick={() => setOpenMovementsDropdown(openMovementsDropdown === app.id ? null : app.id)}
                   >
                     📜 Ver Movimientos
+                  </button>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => abrirResumen(app)}
+                    style={{ width: '100%', marginBottom: '0.5rem' }}
+                  >
+                    📋 Resumen
                   </button>
                   <button 
                     className="btn btn-secondary btn-sm"
@@ -561,6 +612,13 @@ export default function ApplicationsPage() {
                             title="Ver Movimientos"
                           >
                             {openMovementsDropdown === app.id ? '▲' : '📜'}
+                          </button>
+                          <button 
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => abrirResumen(app)}
+                            title="Resumen"
+                          >
+                            📋
                           </button>
                           <button 
                             className="btn btn-secondary btn-sm"
@@ -968,6 +1026,84 @@ export default function ApplicationsPage() {
       )}
 
       {/* Wizard para móvil */}
+      {/* Modal de Resumen */}
+      {showResumen && resumenApplication && (
+        <div className="modal-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 className="modal-title">Resumen de Aplicación</h3>
+              <button 
+                className="btn btn-icon btn-secondary"
+                onClick={() => setShowResumen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <pre style={{ 
+                whiteSpace: 'pre-wrap', 
+                fontFamily: 'monospace',
+                background: 'var(--gray-100)',
+                padding: '1rem',
+                borderRadius: 'var(--radius)',
+                fontSize: '0.9rem',
+                lineHeight: '1.6'
+              }}>
+                {generarResumenTexto(resumenApplication)}
+              </pre>
+              <button
+                className="btn btn-primary"
+                style={{ marginTop: '1rem', width: '100%' }}
+                onClick={async () => {
+                  const text = generarResumenTexto(resumenApplication);
+                  
+                  if (navigator.clipboard && window.isSecureContext) {
+                    try {
+                      await navigator.clipboard.writeText(text);
+                      alert('Resumen copiado al portapapeles');
+                      return;
+                    } catch (e) {
+                      console.log('Clipboard API failed, trying fallback');
+                    }
+                  }
+                  
+                  try {
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    textArea.style.position = 'fixed';
+                    textArea.style.left = '-999999px';
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('Resumen copiado al portapapeles');
+                  } catch (e) {
+                    alert('No se pudo copiar. Seleccioná el texto y copialo manualmente.');
+                  }
+                }}
+              >
+                📋 Copiar al Portapapeles
+              </button>
+            </div>
+            <div className="modal-footer">
+              <button 
+                type="button" 
+                className="btn btn-secondary"
+                onClick={() => setShowResumen(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={() => window.open(`${getFullApiUrl(`/reports/application/${resumenApplication.id}?t=${Date.now()}`)}`, '_blank')}
+              >
+                🖨️ Imprimir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ApplicationWizard
         isOpen={showWizard}
         onClose={() => { setShowWizard(false); setEditingApplication(null); }}
