@@ -42,18 +42,23 @@ export default function ReportsPage() {
   const lots = lotsHook.lots;
   const movements = movementsHook.movements;
 
-  // Calcular stock disponible por lote
+  // Calcular stock disponible por lote (solo movimientos)
   const lotsWithStock = useMemo(() => {
     return lots.map(lot => {
-      // Buscar salidas de este lote específico
+      // Solo considerar movimientos (entradas - salidas)
+      const entradasDelLote = movements
+        .filter(m => m.lotId === lot.id && m.type === 'ENTRADA')
+        .reduce((sum, m) => sum + m.quantity, 0);
+      
       const salidasDelLote = movements
         .filter(m => m.lotId === lot.id && m.type === 'SALIDA')
         .reduce((sum, m) => sum + m.quantity, 0);
       
       return {
         ...lot,
+        entradas: entradasDelLote,
         salidas: salidasDelLote,
-        stockDisponible: lot.initialStock - salidasDelLote
+        stockDisponible: entradasDelLote - salidasDelLote
       };
     });
   }, [lots, movements]);
