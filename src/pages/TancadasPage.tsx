@@ -7,6 +7,7 @@ import { convertDoseToBaseUnit } from '../utils/unitConversions';
 import { getBaseUnitAbbr } from '../utils/units';
 import { getFullApiUrl } from '../shared/services/request';
 import ProductSelector from '../components/ProductSelector';
+import MultiSelect from '../components/MultiSelect';
 
 export default function TancadasPage() {
   const { tancadas, loading, addTancada, updateTancada, deleteTancada } = useTancadas();
@@ -48,6 +49,11 @@ export default function TancadasPage() {
   // Resumen modal
   const [showResumen, setShowResumen] = useState(false);
   const [resumenTancada, setResumenTancada] = useState<Tancada | null>(null);
+  
+  // Filtros
+  const [filterFieldIds, setFilterFieldIds] = useState<string[]>([]);
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
 
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
@@ -63,6 +69,28 @@ export default function TancadasPage() {
     return saved !== null ? saved === 'true' : false;
   });
 
+  // Tancadas filtradas
+  const filteredTancadas = tancadas.filter(tancada => {
+    // Filtro por campo (checar si algún tancadaField coincide con alguno de los seleccionados)
+    if (filterFieldIds.length > 0) {
+      const hasField = tancada.tancadaFields?.some(tf => filterFieldIds.includes(tf.fieldId));
+      if (!hasField) return false;
+    }
+    // Filtro por fecha desde
+    if (filterDateFrom) {
+      const tancadaDate = new Date(tancada.date.split('T')[0]);
+      const fromDate = new Date(filterDateFrom);
+      if (tancadaDate < fromDate) return false;
+    }
+    // Filtro por fecha hasta
+    if (filterDateTo) {
+      const tancadaDate = new Date(tancada.date.split('T')[0]);
+      const toDate = new Date(filterDateTo);
+      if (tancadaDate > toDate) return false;
+    }
+    return true;
+  });
+  
   // Generar texto de resumen para una tancada
   const generarResumenTexto = (tancada: Tancada): string => {
     const totalHectareas = tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0) || 0;
@@ -228,7 +256,7 @@ export default function TancadasPage() {
     } else {
       setEditingId(tancada.id);
       setFormData({
-        date: new Date(tancada.date).toISOString().split('T')[0],
+        date: tancada.date.split('T')[0],
         tankCapacity: tancada.tankCapacity.toString(),
         tankId: '',
         waterAmount: tancada.waterAmount.toString(),
@@ -492,7 +520,8 @@ export default function TancadasPage() {
     e.preventDefault();
     
     const tancadaData = {
-      date: new Date(formData.date).toISOString(),
+      // Enviar date directo YYYY-MM-DD - el backend maneja la conversión a local
+      date: formData.date,
       tankCapacity: parseFloat(formData.tankCapacity),
       waterAmount: parseFloat(formData.waterAmount),
       notes: formData.notes || undefined,
@@ -567,7 +596,9 @@ export default function TancadasPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString();
+    // Parse date as local time to avoid timezone issues
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('es-AR');
   };
 
   // Fetch movements when dropdown is opened
@@ -602,6 +633,47 @@ export default function TancadasPage() {
         </button>
       </div>
 
+      {/* Filtros */}
+      <div className="card mb-2" style={{ padding: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <MultiSelect
+            options={fields.map(f => ({ id: f.id, label: f.name }))}
+            selected={filterFieldIds}
+            onChange={setFilterFieldIds}
+            placeholder="Filtrar por campo"
+          />
+          
+          <input 
+            type="date" 
+            className="form-input" 
+            style={{ width: 'auto' }}
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            placeholder="Desde"
+          />
+          
+          <span style={{ color: 'var(--gray-500)' }}>a</span>
+          
+          <input 
+            type="date" 
+            className="form-input" 
+            style={{ width: 'auto' }}
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            placeholder="Hasta"
+          />
+          
+          {(filterFieldIds.length > 0 || filterDateFrom || filterDateTo) && (
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setFilterFieldIds([]); setFilterDateFrom(''); setFilterDateTo(''); }}
+            >
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
       {fields.length === 0 && (
         <div className="card">
           <div className="empty-state">
@@ -625,7 +697,7 @@ export default function TancadasPage() {
         <>
           {/* Vista móvil - Cards */}
           <div className="mobile-cards">
-            {tancadas.map(tancada => (
+            {filteredTancadas.map(tancada => (
               <div key={tancada.id} className="card-mobile">
                 <div className="card-mobile-header">
                   <span className="card-mobile-date">{formatDate(tancada.date)}</span>
@@ -748,7 +820,7 @@ export default function TancadasPage() {
                 </tr>
               </thead>
               <tbody>
-                {tancadas.map(tancada => (
+                {filteredTancadas.map(tancada => (
                   <Fragment key={tancada.id}>
                     <tr>
                       <td>{formatDate(tancada.date)}</td>

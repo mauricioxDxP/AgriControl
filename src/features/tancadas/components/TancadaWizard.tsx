@@ -104,8 +104,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       };
       
       // Convertir la fecha al formato YYYY-MM-DD para el input date
-      const dateObj = new Date(tancada.date);
-      const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+      const dateStr = tancada.date.split('T')[0];
       
       // Convertir tancadaFields al formato del wizard
       const wizardFields = (tancada.tancadaFields || []).map(f => ({
@@ -358,7 +357,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     }
     
     const tancadaData = {
-      date: new Date(wizardState.date).toISOString(),
+      date: wizardState.date, // YYYY-MM-DD directo del input date
       tankCapacity: parseFloat(wizardState.tankCapacity),
       waterAmount: parseFloat(wizardState.waterAmount),
       notes: wizardState.notes || undefined,
@@ -754,7 +753,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
             <div>
               <div style={{ background: 'var(--gray-50)', padding: '1rem', borderRadius: 'var(--radius-md)', marginBottom: '1rem', color: 'var(--gray-900)' }}>
                 <h4 style={{ marginBottom: '0.75rem', color: 'var(--gray-900)' }}>Resumen de la Tancada</h4>
-                <p style={{ color: 'var(--gray-800)' }}><strong>Fecha:</strong> {new Date(wizardState.date).toLocaleDateString('es-AR')}</p>
+                <p style={{ color: 'var(--gray-800)' }}><strong>Fecha:</strong> {(() => {
+                        const [y, m, d] = wizardState.date.split('-');
+                        return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('es-AR');
+                      })()}</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Agua:</strong> {wizardState.waterAmount}L</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Tanque:</strong> {wizardState.tankCapacity}L</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Hectáreas:</strong> {wizardState.totalHectares} ha</p>

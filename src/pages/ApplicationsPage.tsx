@@ -7,6 +7,7 @@ import { convertDoseToBaseUnit } from '../utils/unitConversions';
 import { getBaseUnitAbbr } from '../utils/units';
 import { getFullApiUrl } from '../shared/services/request';
 import ProductSelector from '../components/ProductSelector';
+import MultiSelect from '../components/MultiSelect';
 
 export default function ApplicationsPage() {
   const { applications, loading, addApplication, updateApplication, deleteApplication } = useApplications();
@@ -51,6 +52,11 @@ export default function ApplicationsPage() {
   // Resumen modal
   const [showResumen, setShowResumen] = useState(false);
   const [resumenApplication, setResumenApplication] = useState<Application | null>(null);
+  
+  // Filtros
+  const [filterFieldIds, setFilterFieldIds] = useState<string[]>([]);
+  const [filterDateFrom, setFilterDateFrom] = useState<string>('');
+  const [filterDateTo, setFilterDateTo] = useState<string>('');
 
   // Stock per lot (real stock calculated from movements)
   const [lotStocks, setLotStocks] = useState<Record<string, number>>({});
@@ -100,6 +106,22 @@ export default function ApplicationsPage() {
 
   // Get selected field
   const selectedField = fields.find(f => f.id === formData.fieldId);
+  
+  // Aplicaciones filtradas
+  const filteredApplications = applications.filter(app => {
+    if (filterFieldIds.length > 0 && !filterFieldIds.includes(app.fieldId)) return false;
+    if (filterDateFrom) {
+      const appDate = new Date(app.date.split('T')[0]);
+      const fromDate = new Date(filterDateFrom);
+      if (appDate < fromDate) return false;
+    }
+    if (filterDateTo) {
+      const appDate = new Date(app.date.split('T')[0]);
+      const toDate = new Date(filterDateTo);
+      if (appDate > toDate) return false;
+    }
+    return true;
+  });
 
   // Calculate dosage for each product
   const calculateProductDosage = (productId: string, dosePerHectare: string, concentration: string) => {
@@ -265,7 +287,7 @@ export default function ApplicationsPage() {
     const appData = {
       fieldId: formData.fieldId,
       type: formData.type,
-      date: new Date(formData.date).toISOString(),
+      date: formData.date || new Date().toISOString().split('T')[0],
       waterAmount: formData.waterAmount ? parseFloat(formData.waterAmount) : undefined,
       notes: formData.notes || undefined,
       products: selectedProducts.map(p => ({
@@ -334,7 +356,7 @@ export default function ApplicationsPage() {
       setFormData({
         fieldId: app.fieldId,
         type: app.type,
-        date: new Date(app.date).toISOString().split('T')[0],
+        date: app.date.split('T')[0],
         waterAmount: app.waterAmount?.toString() || '',
         notes: app.notes || ''
       });
@@ -367,7 +389,9 @@ export default function ApplicationsPage() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString();
+    // Parse date as local time to avoid timezone issues
+    const [year, month, day] = dateStr.split('T')[0].split('-');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day)).toLocaleDateString('es-AR');
   };
 
   // Generar texto de resumen para una aplicación
@@ -430,6 +454,47 @@ export default function ApplicationsPage() {
         </button>
       </div>
 
+      {/* Filtros */}
+      <div className="card mb-2" style={{ padding: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+          <MultiSelect
+            options={fields.map(f => ({ id: f.id, label: f.name }))}
+            selected={filterFieldIds}
+            onChange={setFilterFieldIds}
+            placeholder="Filtrar por campo"
+          />
+          
+          <input 
+            type="date" 
+            className="form-input" 
+            style={{ width: 'auto' }}
+            value={filterDateFrom}
+            onChange={e => setFilterDateFrom(e.target.value)}
+            placeholder="Desde"
+          />
+          
+          <span style={{ color: 'var(--gray-500)' }}>a</span>
+          
+          <input 
+            type="date" 
+            className="form-input" 
+            style={{ width: 'auto' }}
+            value={filterDateTo}
+            onChange={e => setFilterDateTo(e.target.value)}
+            placeholder="Hasta"
+          />
+          
+          {(filterFieldIds.length > 0 || filterDateFrom || filterDateTo) && (
+            <button 
+              className="btn btn-secondary btn-sm"
+              onClick={() => { setFilterFieldIds([]); setFilterDateFrom(''); setFilterDateTo(''); }}
+            >
+              ✕ Limpiar
+            </button>
+          )}
+        </div>
+      </div>
+
       {fields.length === 0 && (
         <div className="card">
           <div className="empty-state">
@@ -461,7 +526,7 @@ export default function ApplicationsPage() {
         <>
           {/* Vista móvil - Cards */}
           <div className="mobile-cards">
-            {applications.map(app => (
+            {filteredApplications.map(app => (
               <div key={app.id} className="card-mobile">
                 <div className="card-mobile-header">
                   <span className="card-mobile-date">{formatDate(app.date)}</span>
@@ -580,7 +645,7 @@ export default function ApplicationsPage() {
                 </tr>
               </thead>
               <tbody>
-                {applications.map(app => (
+                {filteredApplications.map(app => (
                   <Fragment key={app.id}>
                     <tr>
                       <td>{formatDate(app.date)}</td>

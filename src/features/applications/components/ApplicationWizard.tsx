@@ -71,8 +71,7 @@ export default function ApplicationWizard({ isOpen, onClose, onSubmit, products,
           applicationProducts?: { productId: string; concentration?: number; quantity: number; dosePerHectare?: number; lotsUsed?: string }[];
         };
         
-        const dateObj = new Date(app.date);
-        const dateStr = !isNaN(dateObj.getTime()) ? dateObj.toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+        const dateStr = app.date.split('T')[0];
         
         const wizardProducts = (app.applicationProducts || []).map(p => {
           let lotsData: { lotId: string; quantityUsed: number }[] = [];
@@ -760,7 +759,10 @@ export default function ApplicationWizard({ isOpen, onClose, onSubmit, products,
                   <strong>Tipo:</strong> {wizardState.type === 'FUMIGACION' ? 'Fumigación' : 'Siembra'}
                 </div>
                 <div style={{ marginBottom: '0.5rem' }}>
-                  <strong>Fecha:</strong> {new Date(wizardState.date).toLocaleDateString('es-AR')}
+                  <strong>Fecha:</strong> {(() => {
+                      const [y, m, d] = wizardState.date.split('-');
+                      return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('es-AR');
+                    })()}
                 </div>
                 <div style={{ marginBottom: '0.5rem' }}>
                   <strong>Campo:</strong> {getFieldName(wizardState.fieldId)}

@@ -112,7 +112,10 @@ export default function DashboardPage() {
               <tbody>
                 {recentApplications.map(app => (
                   <tr key={app.id}>
-                    <td>{new Date(app.date).toLocaleDateString()}</td>
+                    <td>{(() => {
+                        const [y, m, d] = app.date.split('T')[0].split('-');
+                        return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('es-AR');
+                      })()}</td>
                     <td>
                       <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
                         {app.type}
