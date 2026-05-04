@@ -64,6 +64,9 @@ export default function TancadasPage() {
   const [openMovementsDropdown, setOpenMovementsDropdown] = useState<string | null>(null);
   const [tancadaMovements, setTancadaMovements] = useState<Record<string, any[]>>({});
   
+  // Batch selection for printing
+  const [selectedForPrint, setSelectedForPrint] = useState<string[]>([]);
+  
   const [autoDosage] = useState<boolean>(() => {
     const saved = localStorage.getItem('auto-dosage');
     return saved !== null ? saved === 'true' : false;
@@ -807,9 +810,59 @@ export default function TancadasPage() {
 
           {/* Vista desktop - Tabla */}
           <div className="table-container hide-mobile">
+            {/* Batch print button bar */}
+            {selectedForPrint.length > 0 && (
+              <div style={{ 
+                background: 'var(--primary)', 
+                color: 'white', 
+                padding: '0.75rem 1rem', 
+                borderRadius: 'var(--radius)', 
+                marginBottom: '0.75rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>{selectedForPrint.length} tancada(s) seleccionada(s) para imprimir</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSelectedForPrint([])}
+                    style={{ background: 'rgba(255,255,255,0.2)' }}
+                  >
+                    ✕ Cancelar
+                  </button>
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    style={{ background: 'white', color: 'var(--primary)' }}
+                    onClick={() => {
+                      const url = getFullApiUrl(`/reports/tancadas/batch?ids=${selectedForPrint.join(',')}&t=${Date.now()}`);
+                      window.open(url, '_blank');
+                      setSelectedForPrint([]);
+                    }}
+                  >
+                    🖨️ Imprimir {selectedForPrint.length} PDF
+                  </button>
+                </div>
+              </div>
+            )}
             <table className="table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}>
+                    <input 
+                      type="checkbox"
+                      checked={selectedForPrint.length === filteredTancadas.length && filteredTancadas.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedForPrint(filteredTancadas.slice(0, 2).map(t => t.id));
+                        } else {
+                          setSelectedForPrint([]);
+                        }
+                      }}
+                      title={selectedForPrint.length >= 2 ? 'Máximo 2 para imprimir' : 'Seleccionar hasta 2'}
+                      disabled={selectedForPrint.length >= 2 && selectedForPrint.length !== filteredTancadas.length}
+                    />
+                  </th>
                   <th>Fecha</th>
                   <th>Tanques</th>
                   <th>Productos</th>
@@ -822,7 +875,21 @@ export default function TancadasPage() {
               <tbody>
                 {filteredTancadas.map(tancada => (
                   <Fragment key={tancada.id}>
-                    <tr>
+                    <tr style={{ background: selectedForPrint.includes(tancada.id) ? 'rgba(25, 135, 84, 0.1)' : undefined }}>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedForPrint.includes(tancada.id)}
+                          onChange={() => {
+                            if (selectedForPrint.includes(tancada.id)) {
+                              setSelectedForPrint(selectedForPrint.filter(id => id !== tancada.id));
+                            } else if (selectedForPrint.length < 2) {
+                              setSelectedForPrint([...selectedForPrint, tancada.id]);
+                            }
+                          }}
+                          disabled={!selectedForPrint.includes(tancada.id) && selectedForPrint.length >= 2}
+                        />
+                      </td>
                       <td>{formatDate(tancada.date)}</td>
                       <td>{tancada.tankCapacity} L</td>
                       <td>
@@ -1476,10 +1543,10 @@ export default function TancadasPage() {
               >
                 🖨️ Imprimir
               </button>
-              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       <TancadaWizard
         isOpen={showWizard}

@@ -49,6 +49,9 @@ export default function ApplicationsPage() {
   const [openMovementsDropdown, setOpenMovementsDropdown] = useState<string | null>(null);
   const [applicationMovements, setApplicationMovements] = useState<Record<string, any[]>>({});
   
+  // Batch selection for printing
+  const [selectedForPrint, setSelectedForPrint] = useState<string[]>([]);
+  
   // Resumen modal
   const [showResumen, setShowResumen] = useState(false);
   const [resumenApplication, setResumenApplication] = useState<Application | null>(null);
@@ -633,9 +636,59 @@ export default function ApplicationsPage() {
 
           {/* Vista desktop - Tabla */}
           <div className="table-container hide-mobile">
+            {/* Batch print button bar */}
+            {selectedForPrint.length > 0 && (
+              <div style={{ 
+                background: 'var(--primary)', 
+                color: 'white', 
+                padding: '0.75rem 1rem', 
+                borderRadius: 'var(--radius)', 
+                marginBottom: '0.75rem',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <span>{selectedForPrint.length} aplicación(ones) seleccionada(s) para imprimir</span>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setSelectedForPrint([])}
+                    style={{ background: 'rgba(255,255,255,0.2)' }}
+                  >
+                    ✕ Cancelar
+                  </button>
+                  <button 
+                    className="btn btn-primary btn-sm"
+                    style={{ background: 'white', color: 'var(--primary)' }}
+                    onClick={() => {
+                      const url = getFullApiUrl(`/reports/applications/batch?ids=${selectedForPrint.join(',')}&t=${Date.now()}`);
+                      window.open(url, '_blank');
+                      setSelectedForPrint([]);
+                    }}
+                  >
+                    🖨️ Imprimir {selectedForPrint.length} PDF
+                  </button>
+                </div>
+              </div>
+            )}
             <table className="table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}>
+                    <input 
+                      type="checkbox"
+                      checked={selectedForPrint.length === filteredApplications.length && filteredApplications.length > 0}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedForPrint(filteredApplications.slice(0, 2).map(a => a.id));
+                        } else {
+                          setSelectedForPrint([]);
+                        }
+                      }}
+                      title={selectedForPrint.length >= 2 ? 'Máximo 2 para imprimir' : 'Seleccionar hasta 2'}
+                      disabled={selectedForPrint.length >= 2 && selectedForPrint.length !== filteredApplications.length}
+                    />
+                  </th>
                   <th>Fecha</th>
                   <th>Tipo</th>
                   <th>Campo</th>
@@ -647,7 +700,21 @@ export default function ApplicationsPage() {
               <tbody>
                 {filteredApplications.map(app => (
                   <Fragment key={app.id}>
-                    <tr>
+                    <tr style={{ background: selectedForPrint.includes(app.id) ? 'rgba(25, 135, 84, 0.1)' : undefined }}>
+                      <td>
+                        <input 
+                          type="checkbox"
+                          checked={selectedForPrint.includes(app.id)}
+                          onChange={() => {
+                            if (selectedForPrint.includes(app.id)) {
+                              setSelectedForPrint(selectedForPrint.filter(id => id !== app.id));
+                            } else if (selectedForPrint.length < 2) {
+                              setSelectedForPrint([...selectedForPrint, app.id]);
+                            }
+                          }}
+                          disabled={!selectedForPrint.includes(app.id) && selectedForPrint.length >= 2}
+                        />
+                      </td>
                       <td>{formatDate(app.date)}</td>
                       <td>
                         <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
