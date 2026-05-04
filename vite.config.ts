@@ -4,7 +4,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 import path from 'path';
 import fs from 'fs';
 
+const timestamp = Date.now().toString();
+
 export default defineConfig({
+  define: {
+    'import.meta.env.PWA_VERSION': JSON.stringify(timestamp)
+  },
   plugins: [
     react(),
     VitePWA({
@@ -20,6 +25,7 @@ export default defineConfig({
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        version: timestamp,
         icons: [
           {
             src: 'pwa-192x192.svg',
@@ -42,12 +48,15 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         maximumFileSizeToCacheInBytes: 3000000,
+        navigateFallback: null,
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\./i,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'api-cache',
+              cacheName: 'api-cache-' + timestamp,
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
