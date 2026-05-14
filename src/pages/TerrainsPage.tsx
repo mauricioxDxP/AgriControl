@@ -280,148 +280,185 @@ export default function TerrainsPage() {
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {terrains.map(terrain => (
-            <div key={terrain.id} className="card">
-              {/* Terrain Header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '1rem'
+        }}>
+          {terrains.map(terrain => {
+            const isExpanded = expandedTerrainId === terrain.id;
+            return (
               <div 
-                className="card-header" 
-                style={{ cursor: 'pointer' }}
+                key={terrain.id} 
+                className="card"
+                style={{
+                  cursor: 'pointer',
+                  border: isExpanded ? '2px solid var(--primary)' : '1px solid var(--gray-200)',
+                  position: 'relative',
+                  padding: '0.5rem',
+                  gridColumn: isExpanded ? '1 / -1' : 'unset'
+                }}
                 onClick={() => toggleTerrain(terrain.id)}
               >
-                <div className="flex align-center gap-1">
-                  <span style={{ fontSize: '1.2rem' }}>{expandedTerrainId === terrain.id ? '▼' : '▶'}</span>
-                  <h3 className="card-title">{terrain.name}</h3>
-                </div>
-                <div className="flex gap-1" onClick={e => e.stopPropagation()}>
+                {/* Botones de accion */}
+                <div 
+                  className="flex gap-1" 
+                  style={{ position: 'absolute', top: '0.25rem', right: '0.25rem', zIndex: 1 }}
+                  onClick={e => e.stopPropagation()}
+                >
                   <button 
-                    className="btn btn-secondary btn-sm" 
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
                     onClick={() => openTerrainModal(terrain)}
                   >
-                    Editar
+                    ✏️
                   </button>
                   <button 
                     className="btn btn-danger btn-sm"
+                    style={{ padding: '0.1rem 0.3rem', fontSize: '0.7rem' }}
                     onClick={() => handleTerrainDelete(terrain.id)}
                   >
-                    Eliminar
+                    ✕
                   </button>
                 </div>
-              </div>
 
-              {/* Terrain Info & Summary */}
-              <div style={{ padding: '0 1rem' }}>
-                {/* Location */}
+                {/* Info terreno */}
+                <div style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '0.5rem' }}>🗺️</div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 600, textAlign: 'center', marginBottom: '0.25rem' }}>{terrain.name}</div>
+                
                 {terrain.location && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)', textAlign: 'center', marginBottom: '0.25rem' }}>
                     📍 {terrain.location}
                   </div>
                 )}
-                {terrain.latitude && terrain.longitude && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: '0.5rem' }}>
-                    🗺️ {terrain.latitude.toFixed(4)}, {terrain.longitude.toFixed(4)}
+                
+                <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)', textAlign: 'center', marginBottom: '0.5rem' }}>
+                  {terrain.fields?.length || 0} campos ({getTotalArea(terrain).toFixed(2)} has)
+                </div>
+                
+                {/* Indicador expandido */}
+                {isExpanded ? (
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: 'var(--primary)', 
+                    textAlign: 'center',
+                    fontWeight: 500
+                  }}>
+                    ▼ Ocultar
+                  </div>
+                ) : (
+                  <div style={{ 
+                    fontSize: '0.75rem', 
+                    color: 'var(--gray-500)', 
+                    textAlign: 'center',
+                    fontWeight: 500
+                  }}>
+                    ▶ Ver campos
                   </div>
                 )}
 
-                {/* Summary - visible before expanding */}
-                {terrain.fields && terrain.fields.length > 0 && (
-                  <div style={{ 
-                    marginTop: '0.75rem', 
-                    padding: '0.75rem', 
-                    background: 'var(--gray-100)', 
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.85rem'
-                  }}>
-                    <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
-                      📊 Resumen ({terrain.fields.length} campo{terrain.fields.length !== 1 ? 's' : ''} - {getTotalArea(terrain).toFixed(2)} has)
+                {/* Expanded Content - Fields */}
+                {isExpanded && (
+                  <div style={{ borderTop: '1px solid var(--gray-200)', marginTop: '0.5rem', paddingTop: '0.5rem' }}>
+                    {/* Header con boton nuevo campo */}
+                    <div className="flex flex-between mb-1" style={{ padding: '0 0.25rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                        📊 {terrain.fields?.length || 0} campos
+                      </span>
+                      <button 
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '0.1rem 0.4rem', fontSize: '0.7rem' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openFieldModal(terrain.id);
+                        }}
+                      >
+                        + Nuevo
+                      </button>
                     </div>
-                    
-                    {/* Single field - show as a larger card */}
-                    {terrain.fields.length === 1 && (
-                      <div style={{
-                        marginTop: '0.5rem',
-                        padding: '1rem',
-                        background: 'var(--white)',
-                        border: '2px solid var(--gray-200)',
-                        borderRadius: 'var(--radius)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '0.25rem'
-                      }}>
-                        <div style={{ fontSize: '1.5rem' }}>🌾</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 600 }}>{terrain.fields[0].name}</div>
-                        <div style={{ fontSize: '0.9rem', color: 'var(--gray-600)' }}>{terrain.fields[0].area} has</div>
-                        {getActivePlanting(terrain.fields[0].id) && (
-                          <div style={{
-                            marginTop: '0.25rem',
-                            background: 'var(--success)',
-                            color: 'white',
-                            padding: '0.25rem 0.75rem',
-                            borderRadius: 'var(--radius)',
-                            fontSize: '0.85rem',
-                            fontWeight: 500,
-                            textAlign: 'center'
-                          }}>
-                            <div>🌱 {getActivePlanting(terrain.fields[0].id)?.product?.name || 'Activa'}</div>
-                            <div style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                              {new Date(getActivePlanting(terrain.fields[0].id)!.startDate).toLocaleDateString()}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
 
-                    {/* Multiple fields - show as grid of cards */}
-                    {terrain.fields.length > 1 && (
+                    {/* Grid de campos */}
+                    {(!terrain.fields || terrain.fields.length === 0) ? (
+                      <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)', fontSize: '0.8rem' }}>
+                        Sin campos
+                      </div>
+                    ) : (
                       <div style={{
-                        marginTop: '0.5rem',
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
                         gap: '0.5rem'
                       }}>
-                        {terrain.fields.slice(0, 4).map((field: any) => {
+                        {terrain.fields?.map(field => {
                           const active = getActivePlanting(field.id);
                           const completed = getFieldCompletedPlantings(field.id);
+                          const isFieldExpanded = expandedFieldId === field.id;
+                          
                           return (
-                            <div key={field.id} style={{
-                              padding: '0.75rem',
-                              background: 'var(--white)',
-                              border: '1px solid var(--gray-200)',
-                              borderRadius: 'var(--radius-sm)',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              gap: '0.15rem'
-                            }}>
-                              <div style={{ fontSize: '1.25rem' }}>🌾</div>
-                              <div style={{ fontSize: '0.9rem', fontWeight: 600, textAlign: 'center' }}>{field.name}</div>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>{field.area} has</div>
+                            <div 
+                              key={field.id} 
+                              style={{
+                                padding: '0.5rem',
+                                border: isFieldExpanded ? '2px solid var(--primary)' : '1px solid var(--gray-200)',
+                                borderRadius: 'var(--radius-sm)',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '0.15rem',
+                                position: 'relative'
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleField(field.id);
+                              }}
+                            >
+                              {/* Botones de accion */}
+                              <div 
+                                className="flex gap-1" 
+                                style={{ position: 'absolute', top: '0.15rem', right: '0.15rem' }}
+                                onClick={e => e.stopPropagation()}
+                              >
+                                <button 
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '0.05rem 0.2rem', fontSize: '0.6rem' }}
+                                  onClick={() => openFieldModal(terrain.id, field)}
+                                >
+                                  ✏️
+                                </button>
+                                <button 
+                                  className="btn btn-danger btn-sm"
+                                  style={{ padding: '0.05rem 0.2rem', fontSize: '0.6rem' }}
+                                  onClick={() => handleFieldDelete(field.id)}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                              
+                              <div style={{ fontSize: '1rem' }}>🌾</div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600, textAlign: 'center' }}>{field.name}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--gray-600)' }}>{field.area} has</div>
+                              
                               {active && (
                                 <div style={{
-                                  marginTop: '0.15rem',
                                   background: 'var(--success)',
                                   color: 'white',
-                                  padding: '0.1rem 0.4rem',
-                                  borderRadius: '3px',
-                                  fontSize: '0.7rem',
+                                  padding: '0.1rem 0.3rem',
+                                  borderRadius: '2px',
+                                  fontSize: '0.6rem',
                                   fontWeight: 500,
                                   textAlign: 'center'
                                 }}>
-                                  <div>🌱 {active.product?.name?.substring(0, 8) || 'Activa'}</div>
-                                  <div style={{ fontSize: '0.65rem', opacity: 0.9 }}>
-                                    {new Date(active.startDate).toLocaleDateString()}
-                                  </div>
+                                  🌱 {active.product?.name?.substring(0, 8)}
                                 </div>
                               )}
                               {completed.length > 0 && !active && (
                                 <div style={{
-                                  marginTop: '0.15rem',
                                   background: 'var(--gray-400)',
                                   color: 'white',
-                                  padding: '0.1rem 0.4rem',
-                                  borderRadius: '3px',
-                                  fontSize: '0.7rem'
+                                  padding: '0.1rem 0.3rem',
+                                  borderRadius: '2px',
+                                  fontSize: '0.6rem',
+                                  textAlign: 'center'
                                 }}>
                                   ✅ {completed.length}
                                 </div>
@@ -429,19 +466,105 @@ export default function TerrainsPage() {
                             </div>
                           );
                         })}
-                        {terrain.fields.length > 4 && (
-                          <div style={{
-                            padding: '0.75rem',
-                            background: 'var(--gray-100)',
-                            border: '1px dashed var(--gray-300)',
-                            borderRadius: 'var(--radius-sm)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--gray-500)',
-                            fontSize: '0.85rem'
-                          }}>
-                            +{terrain.fields.length - 4} más
+                      </div>
+                    )}
+
+                    {/* Siembras del campo seleccionado */}
+                    {expandedFieldId && (
+                      <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'var(--gray-50)', borderRadius: 'var(--radius-sm)' }}>
+                        <div className="flex flex-between mb-1">
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                            Siembras
+                          </span>
+                          <button 
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '0.1rem 0.3rem', fontSize: '0.65rem' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openPlantingModal(expandedFieldId);
+                            }}
+                          >
+                            + Nueva
+                          </button>
+                        </div>
+
+                        {/* Active Plantings */}
+                        {getActivePlantings(expandedFieldId, plantings).length > 0 && (
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            {getActivePlantings(expandedFieldId, plantings).map(p => (
+                              <div key={p.id} style={{ 
+                                padding: '0.25rem 0.4rem', 
+                                background: 'var(--white)', 
+                                borderLeft: '2px solid var(--success)',
+                                marginBottom: '0.25rem',
+                                borderRadius: '2px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{p.product?.name}</span>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--gray-600)' }}>
+                                    {new Date(p.startDate).toLocaleDateString()}
+                                  </div>
+                                </div>
+                                <div className="flex gap-1">
+                                  <button 
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '0.05rem 0.2rem', fontSize: '0.6rem' }}
+                                    onClick={() => handleEndPlanting(p.id)}
+                                  >
+                                    ✓
+                                  </button>
+                                  <button 
+                                    className="btn btn-danger btn-sm"
+                                    style={{ padding: '0.05rem 0.2rem', fontSize: '0.6rem' }}
+                                    onClick={() => handlePlantingDelete(p.id)}
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Completed Plantings */}
+                        {getCompletedPlantings(expandedFieldId, plantings).length > 0 && (
+                          <div>
+                            {getCompletedPlantings(expandedFieldId, plantings).map(p => (
+                              <div key={p.id} style={{ 
+                                padding: '0.25rem 0.4rem', 
+                                background: 'var(--white)', 
+                                borderLeft: '2px solid var(--gray-400)',
+                                opacity: 0.8,
+                                marginBottom: '0.25rem',
+                                borderRadius: '2px',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                              }}>
+                                <div>
+                                  <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>{p.product?.name}</span>
+                                  <div style={{ fontSize: '0.65rem', color: 'var(--gray-600)' }}>
+                                    {new Date(p.startDate).toLocaleDateString()} → {p.endDate ? new Date(p.endDate).toLocaleDateString() : '-'}
+                                  </div>
+                                </div>
+                                <button 
+                                  className="btn btn-danger btn-sm"
+                                  style={{ padding: '0.05rem 0.2rem', fontSize: '0.6rem' }}
+                                  onClick={() => handlePlantingDelete(p.id)}
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {getActivePlantings(expandedFieldId, plantings).length === 0 && getCompletedPlantings(expandedFieldId, plantings).length === 0 && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--gray-500)', textAlign: 'center' }}>
+                            Sin siembras
                           </div>
                         )}
                       </div>
@@ -449,155 +572,8 @@ export default function TerrainsPage() {
                   </div>
                 )}
               </div>
-
-              {/* Expanded Content - Fields */}
-              {expandedTerrainId === terrain.id && (
-                <div style={{ marginTop: '1rem', borderTop: '1px solid var(--gray-200)', paddingTop: '1rem' }}>
-                  <div className="flex flex-between mb-2" style={{ padding: '0 0.5rem' }}>
-                    <h4 style={{ margin: 0 }}>Campos ({terrain.fields?.length || 0})</h4>
-                    <button 
-                      className="btn btn-primary btn-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openFieldModal(terrain.id);
-                      }}
-                    >
-                      + Nuevo Campo
-                    </button>
-                  </div>
-
-                  {(!terrain.fields || terrain.fields.length === 0) ? (
-                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--gray-500)' }}>
-                      No hay campos en este terreno
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {terrain.fields?.map(field => (
-                        <div key={field.id} className="card" style={{ background: 'var(--gray-100)' }}>
-                          {/* Field Header */}
-                          <div 
-                            className="flex flex-between"
-                            style={{ cursor: 'pointer', padding: '0.5rem' }}
-                            onClick={() => toggleField(field.id)}
-                          >
-                            <div className="flex align-center gap-1">
-                              <span style={{ fontSize: '0.9rem' }}>{expandedFieldId === field.id ? '▼' : '▶'}</span>
-                              <span>🌾 <strong>{field.name}</strong></span>
-                              <span style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
-                                ({field.area} has)
-                              </span>
-                            </div>
-                            <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                              <button 
-                                className="btn btn-secondary btn-sm"
-                                onClick={() => openFieldModal(terrain.id, field)}
-                              >
-                                Editar
-                              </button>
-                              <button 
-                                className="btn btn-danger btn-sm"
-                                onClick={() => handleFieldDelete(field.id)}
-                              >
-                                Eliminar
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Expanded Content - Plantings */}
-                          {expandedFieldId === field.id && (
-                            <div style={{ marginTop: '0.5rem', padding: '0.5rem', borderTop: '1px solid var(--gray-200)' }}>
-                              {/* Add Planting Button */}
-                              <div style={{ marginBottom: '1rem' }}>
-                                <button 
-                                  className="btn btn-primary btn-sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openPlantingModal(field.id);
-                                  }}
-                                >
-                                  + Nueva Siembra
-                                </button>
-                              </div>
-
-                              {/* Active Plantings */}
-                              <div style={{ marginBottom: '1rem' }}>
-                                <h5 style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: '0.5rem' }}>
-                                  Siembras Activas
-                                </h5>
-                                {getActivePlantings(field.id, plantings).length === 0 ? (
-                                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                                    No hay siembras activas
-                                  </div>
-                                ) : (
-                                  getActivePlantings(field.id, plantings).map(p => (
-                                    <div key={p.id} className="card" style={{ padding: '0.5rem', background: 'var(--white)', borderLeft: '3px solid var(--success)' }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                          <span style={{ fontWeight: 500 }}>{p.product?.name || 'Producto'}</span>
-                                          <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
-                                            Inicio: {new Date(p.startDate).toLocaleDateString()}
-                                          </div>
-                                        </div>
-                                        <div className="flex gap-1">
-                                          <button 
-                                            className="btn btn-secondary btn-sm"
-                                            onClick={() => handleEndPlanting(p.id)}
-                                          >
-                                            Finalizar
-                                          </button>
-                                          <button 
-                                            className="btn btn-danger btn-sm"
-                                            onClick={() => handlePlantingDelete(p.id)}
-                                          >
-                                            Eliminar
-                                          </button>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-
-                              {/* Completed Plantings */}
-                              <div>
-                                <h5 style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: '0.5rem' }}>
-                                  Siembras Finalizadas
-                                </h5>
-                                {getCompletedPlantings(field.id, plantings).length === 0 ? (
-                                  <div style={{ fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                                    No hay siembras finalizadas
-                                  </div>
-                                ) : (
-                                  getCompletedPlantings(field.id, plantings).map(p => (
-                                    <div key={p.id} className="card" style={{ padding: '0.5rem', background: 'var(--white)', borderLeft: '3px solid var(--gray-400)', opacity: 0.8 }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                          <span style={{ fontWeight: 500 }}>{p.product?.name || 'Producto'}</span>
-                                          <div style={{ fontSize: '0.8rem', color: 'var(--gray-600)' }}>
-                                            {new Date(p.startDate).toLocaleDateString()} → {p.endDate ? new Date(p.endDate).toLocaleDateString() : '-'}
-                                          </div>
-                                        </div>
-                                        <button 
-                                          className="btn btn-danger btn-sm"
-                                          onClick={() => handlePlantingDelete(p.id)}
-                                        >
-                                          Eliminar
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
