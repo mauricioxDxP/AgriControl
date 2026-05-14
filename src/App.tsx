@@ -85,6 +85,14 @@ function App() {
   return (
     <div className="app-container">
       <header className="app-header">
+        {/* Hamburger button for mobile - inside header */}
+        <button 
+          className="hamburger-btn"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Menu"
+        >
+          ☰
+        </button>
         <h1>🌱 AgroControl</h1>
       </header>
 
@@ -109,16 +117,15 @@ function App() {
         </div>
       </div>
 
-      {/* Hamburger button for mobile - OUTSIDE nav */}
-      <button 
-        className="hamburger-btn"
-        onClick={() => setMenuOpen(!menuOpen)}
-        aria-label="Menu"
-      >
-        {menuOpen ? '✕' : '☰'}
-      </button>
-
       <nav className={`nav-bar ${menuOpen ? 'open' : ''}`}>
+        {/* Mobile close button - top right corner */}
+        <button 
+          className="nav-close-btn" 
+          onClick={() => setMenuOpen(false)}
+          aria-label="Cerrar menú"
+        >
+          ✕
+        </button>
         {/* Mobile: show all groups expanded */}
         <div className="nav-mobile-sections hide-desktop">
           {Object.entries(groupLabels).map(([groupKey, { label, icon }]) => (

@@ -153,21 +153,14 @@ body {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
   color: var(--white);
   padding: 1rem;
+  padding-left: 0.5rem;
   box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
   z-index: 100;
-}
-
-@media (max-width: 800px) {
-  .app-header {
-    padding: 1rem !important;
-  }
-  
-  .app-header h1 {
-    justify-content: center;
-    margin: 0;
-  }
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .app-header h1 {
@@ -176,6 +169,19 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin: 0;
+}
+
+@media (max-width: 800px) {
+  .app-header {
+    padding: 1rem !important;
+    padding-left: 0.5rem !important;
+    gap: 0.5rem;
+  }
+  
+  .app-header h1 {
+    font-size: 1.2rem;
+  }
 }
 
 .app-main {
@@ -282,22 +288,18 @@ body {
 @media (max-width: 800px) {
   .hamburger-btn {
     display: flex !important;
-    align-items: center;
-    justify-content: center;
-    background: var(--white) !important;
-    border: 1px solid var(--gray-200) !important;
+    /* align-items: center; */
+    /* justify-content: center; */
+    background: transparent !important;
+    border: none !important;
     font-size: 1.25rem !important;
     cursor: pointer;
-    color: var(--gray-700) !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-    border-radius: 6px !important;
-    width: 40px !important;
-    height: 40px !important;
+    color: white !important;
     padding: 0 !important;
-    position: fixed !important;
-    top: 12px !important;
-    left: 12px !important;
-    z-index: 9999 !important;
+    width: 32px !important;
+    height: 32px !important;
+    flex-shrink: 0;
+    /* margin-left: -0.25rem; */
   }
 }
 
@@ -334,6 +336,7 @@ body {
     transition: transform 0.3s ease;
     z-index: 100;
     overflow-y: auto;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
   
@@ -343,6 +346,36 @@ body {
   
   .nav-desktop {
     display: none;
+  }
+  
+  .nav-mobile-close {
+    padding: 0.5rem 1rem 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    margin-bottom: 0.5rem;
+  }
+  
+  .nav-close-btn {
+    display: none;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    cursor: pointer;
+    color: var(--gray-600);
+    padding: 4px 8px;
+    z-index: 101;
+  }
+  
+  .nav-close-btn:hover {
+    color: var(--gray-900);
+  }
+  
+  @media (max-width: 800px) {
+    .nav-close-btn {
+      display: block;
+    }
   }
   
   .nav-mobile-sections {
@@ -402,7 +435,7 @@ body {
   }
   
   .app-header {
-    padding-left: 3rem !important;
+    padding-left: 1rem !important;
   }
 }
 
