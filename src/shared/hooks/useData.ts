@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { dbHelpers } from '../../db/database';
-import { productsService, lotsService, fieldsService, applicationsService, movementsService, tancadasService, tanksService, syncService } from '../../services';
-import { Product, Lot, Field, Application, CreateApplicationInput, Movement, Tancada, Tank, CreateTancadaInput } from '../../types';
+import { productsService, lotsService, fieldsService, movementsService, tancadasService, tanksService, syncService } from '../../services';
+import { Product, Lot, Field, Movement, Tancada, Tank, CreateTancadaInput } from '../../types';
 
 // Hook para detectar estado online/offline
 export function useOnlineStatus() {
@@ -332,153 +332,6 @@ export function useFields() {
   return { fields, loading, addField, updateField, deleteField, refresh: loadFields };
 }
 
-// Hook para aplicaciones
-export function useApplications(fieldId?: string) {
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(true);
-  const isOnline = useOnlineStatus();
-
-  const loadApplications = useCallback(async () => {
-    setLoading(true);
-    try {
-      if (isOnline) {
-        const data = fieldId
-          ? await applicationsService.getByField(fieldId)
-          : await applicationsService.getAll();
-        setApplications(data);
-      } else {
-        const localData = fieldId
-          ? await dbHelpers.getApplicationsByField(fieldId)
-          : await dbHelpers.getAllApplications();
-        setApplications(localData);
-      }
-    } catch {
-      const localData = fieldId
-        ? await dbHelpers.getApplicationsByField(fieldId)
-        : await dbHelpers.getAllApplications();
-      setApplications(localData);
-    } finally {
-      setLoading(false);
-    }
-  }, [isOnline, fieldId]);
-
-  useEffect(() => {
-    loadApplications();
-  }, [loadApplications]);
-
-  const addApplication = async (data: CreateApplicationInput) => {
-    const { lots, products, ...appData } = data;
-    const newApplication: Application = {
-      id: uuidv4(),
-      fieldId: appData.fieldId || '',
-      type: appData.type || 'FUMIGACION',
-      date: appData.date || new Date().toISOString(),
-      waterAmount: appData.waterAmount,
-      notes: appData.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      synced: false,
-      applicationProducts: (products || []).map(p => ({
-        id: uuidv4(),
-        applicationId: '',
-        productId: p.productId,
-        dosePerHectare: p.dosePerHectare,
-        concentration: p.concentration,
-        quantityUsed: p.quantityUsed,
-        createdAt: new Date().toISOString(),
-        synced: false
-      })),
-      applicationLots: (lots || []).map(l => ({
-        id: uuidv4(),
-        applicationId: '',
-        lotId: l.lotId,
-        quantityUsed: l.quantityUsed,
-        createdAt: new Date().toISOString(),
-        synced: false
-      }))
-    };
-
-    if (isOnline) {
-      try {
-        const created = await applicationsService.create({ ...appData, products, lots });
-        await dbHelpers.addApplication(created);
-        setApplications(prev => [created, ...prev]);
-        return created;
-      } catch {
-        await dbHelpers.addApplication(newApplication);
-        setApplications(prev => [newApplication, ...prev]);
-        return newApplication;
-      }
-    } else {
-      await dbHelpers.addApplication(newApplication);
-      setApplications(prev => [newApplication, ...prev]);
-      return newApplication;
-    }
-  };
-
-  const deleteApplication = async (id: string) => {
-    if (isOnline) {
-      try {
-        await applicationsService.delete(id);
-      } catch {}
-    }
-    await dbHelpers.deleteApplication(id);
-    setApplications(prev => prev.filter(a => a.id !== id));
-  };
-
-  const updateApplication = async (id: string, data: CreateApplicationInput) => {
-    const { lots, products, ...appData } = data;
-    const updatedApplication: Application = {
-      id,
-      fieldId: appData.fieldId || '',
-      type: appData.type || 'FUMIGACION',
-      date: appData.date || new Date().toISOString(),
-      waterAmount: appData.waterAmount,
-      notes: appData.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      synced: false,
-      applicationProducts: (products || []).map(p => ({
-        id: uuidv4(),
-        applicationId: id,
-        productId: p.productId,
-        dosePerHectare: p.dosePerHectare,
-        concentration: p.concentration,
-        quantityUsed: p.quantityUsed,
-        createdAt: new Date().toISOString(),
-        synced: false
-      })),
-      applicationLots: (lots || []).map(l => ({
-        id: uuidv4(),
-        applicationId: id,
-        lotId: l.lotId,
-        quantityUsed: l.quantityUsed,
-        createdAt: new Date().toISOString(),
-        synced: false
-      }))
-    };
-
-    if (isOnline) {
-      try {
-        const updated = await applicationsService.update(id, { ...appData, products, lots });
-        await dbHelpers.updateApplication(id, updated);
-        setApplications(prev => prev.map(a => a.id === id ? updated : a));
-        return updated;
-      } catch {
-        await dbHelpers.updateApplication(id, updatedApplication);
-        setApplications(prev => prev.map(a => a.id === id ? updatedApplication : a));
-        return updatedApplication;
-      }
-    } else {
-      await dbHelpers.updateApplication(id, updatedApplication);
-      setApplications(prev => prev.map(a => a.id === id ? updatedApplication : a));
-      return updatedApplication;
-    }
-  };
-
-  return { applications, loading, addApplication, updateApplication, deleteApplication, refresh: loadApplications };
-}
-
 // Hook para sincronización
 export function useSync() {
   const [syncing, setSyncing] = useState(false);
@@ -507,11 +360,6 @@ export function useSync() {
       if (result.serverData.fields) {
         for (const f of result.serverData.fields) {
           await dbHelpers.addField(f as Field);
-        }
-      }
-      if (result.serverData.applications) {
-        for (const a of result.serverData.applications) {
-          await dbHelpers.addApplication(a);
         }
       }
       if (result.serverData.movements) {
@@ -636,6 +484,7 @@ export function useTancadas() {
   const addTancada = async (data: CreateTancadaInput) => {
     const newTancada: Tancada = {
       id: uuidv4(),
+      type: data.type,
       date: data.date || new Date().toISOString(),
       tankCapacity: data.tankCapacity,
       waterAmount: data.waterAmount,
@@ -711,6 +560,7 @@ export function useTancadas() {
         // Handle offline
         const localTancada: Tancada = {
           id,
+          type: data.type,
           date: data.date || new Date().toISOString(),
           tankCapacity: data.tankCapacity,
           waterAmount: data.waterAmount,
@@ -745,6 +595,7 @@ export function useTancadas() {
     } else {
       const localTancada: Tancada = {
         id,
+        type: data.type,
         date: data.date || new Date().toISOString(),
         tankCapacity: data.tankCapacity,
         waterAmount: data.waterAmount,

@@ -7,7 +7,6 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ProductsPage = lazy(() => import('./pages/ProductsPage'));
 const LotsPage = lazy(() => import('./pages/LotsPage'));
 const TerrainsPage = lazy(() => import('./pages/TerrainsPage'));
-const ApplicationsPage = lazy(() => import('./pages/ApplicationsPage'));
 const StockPage = lazy(() => import('./pages/StockPage'));
 const TanksPage = lazy(() => import('./pages/TanksPage'));
 const TancadasPage = lazy(() => import('./pages/TancadasPage'));
@@ -70,7 +69,6 @@ function App() {
     { path: '/terrains', label: 'Terrenos', icon: '🗺️', group: 'operaciones' },
     { path: '/tanks', label: 'Tanques', icon: '🛢️', group: 'operaciones' },
     { path: '/tancadas', label: 'Tancadas', icon: '🚿', group: 'operaciones' },
-    { path: '/applications', label: 'Aplicaciones', icon: '🚁', group: 'operaciones' },
     { path: '/settings/operations', label: 'Config. Operaciones', icon: '⚙️', group: 'operaciones' },
     { path: '/settings/fields', label: 'Config. Siembras', icon: '🌱', group: 'operaciones' },
     // System
@@ -200,7 +198,6 @@ function App() {
             <Route path="/settings/products" element={<ProductSettingsPage />} />
             <Route path="/settings/operations" element={<OperationSettingsPage />} />
             <Route path="/settings/fields" element={<FieldSettingsPage />} />
-            <Route path="/applications" element={<ApplicationsPage />} />
             <Route path="/inventory-count" element={<InventoryCountPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

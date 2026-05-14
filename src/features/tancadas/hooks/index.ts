@@ -34,6 +34,7 @@ export function useTancadas() {
   const addTancada = async (data: CreateTancadaInput) => {
     const newTancada: Tancada = {
       id: uuidv4(),
+      type: data.type,
       date: data.date || new Date().toISOString(),
       tankCapacity: data.tankCapacity,
       waterAmount: data.waterAmount,
@@ -109,6 +110,7 @@ export function useTancadas() {
         // Handle offline
         const localTancada: Tancada = {
           id,
+          type: data.type,
           date: data.date || new Date().toISOString(),
           tankCapacity: data.tankCapacity,
           waterAmount: data.waterAmount,
@@ -143,6 +145,7 @@ export function useTancadas() {
     } else {
       const localTancada: Tancada = {
         id,
+        type: data.type,
         date: data.date || new Date().toISOString(),
         tankCapacity: data.tankCapacity,
         waterAmount: data.waterAmount,

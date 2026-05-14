@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Product, Lot, Field, Application, Movement, ApplicationLot, Container, Tancada, TancadaField, Tank, Terrain, Planting } from '../types';
+import { Product, Lot, Field, Movement, Container, Tancada, TancadaField, Tank, Terrain, Planting } from '../types';
 
 // Use any for tables with circular references
 type AnyTable = Table<any>;
@@ -8,9 +8,7 @@ export class AgroControlDB extends Dexie {
   products!: Table<Product>;
   lots!: Table<Lot>;
   fields!: AnyTable;
-  applications!: Table<Application>;
   movements!: Table<Movement>;
-  applicationLots!: Table<ApplicationLot>;
   containers!: Table<Container>;
   tancadas!: Table<Tancada>;
   tancadaFields!: Table<TancadaField>;
@@ -25,9 +23,7 @@ export class AgroControlDB extends Dexie {
       products: 'id, name, type, synced, updatedAt',
       lots: 'id, productId, synced, updatedAt',
       fields: 'id, name, synced, updatedAt',
-      applications: 'id, fieldId, type, synced, updatedAt',
       movements: 'id, productId, lotId, type, synced, updatedAt',
-      applicationLots: 'id, applicationId, lotId, synced',
       containers: 'id, lotId, type, status, synced, updatedAt',
       tancadas: 'id, productId, date, synced, updatedAt',
       tancadaFields: 'id, tancadaId, fieldId, synced',
@@ -92,27 +88,6 @@ export const dbHelpers = {
     await db.lots.delete(id);
   },
 
-  // Aplicaciones
-  async getAllApplications(): Promise<Application[]> {
-    return await db.applications.toArray();
-  },
-  
-  async getApplicationsByField(fieldId: string): Promise<Application[]> {
-    return await db.applications.where('fieldId').equals(fieldId).toArray();
-  },
-  
-  async addApplication(application: Application): Promise<string> {
-    return await db.applications.put(application);
-  },
-  
-  async updateApplication(id: string, changes: Partial<Application>): Promise<number> {
-    return await db.applications.update(id, { ...changes, updatedAt: new Date().toISOString() });
-  },
-  
-  async deleteApplication(id: string): Promise<void> {
-    await db.applications.delete(id);
-  },
-
   // Fields
   async getAllFields(): Promise<Field[]> {
     return await db.fields.toArray();
@@ -163,15 +138,6 @@ export const dbHelpers = {
     await db.movements.delete(id);
   },
 
-  // ApplicationLots
-  async getApplicationLotsByApplication(applicationId: string): Promise<ApplicationLot[]> {
-    return await db.applicationLots.where('applicationId').equals(applicationId).toArray();
-  },
-  
-  async addApplicationLot(applicationLot: ApplicationLot): Promise<string> {
-    return await db.applicationLots.put(applicationLot);
-  },
-
   // Contenedores
   async getAllContainers(): Promise<Container[]> {
     return await db.containers.toArray();
@@ -195,19 +161,17 @@ export const dbHelpers = {
 
   // Utilidades
   async getUnsyncedData() {
-    const [products, lots, fields, applications, movements, applicationLots, containers, tancadas, tancadaFields] = await Promise.all([
+    const [products, lots, fields, movements, containers, tancadas, tancadaFields] = await Promise.all([
       db.products.where('synced').equals(0).toArray(),
       db.lots.where('synced').equals(0).toArray(),
       db.fields.where('synced').equals(0).toArray(),
-      db.applications.where('synced').equals(0).toArray(),
       db.movements.where('synced').equals(0).toArray(),
-      db.applicationLots.where('synced').equals(0).toArray(),
       db.containers.where('synced').equals(0).toArray(),
       db.tancadas.where('synced').equals(0).toArray(),
       db.tancadaFields.where('synced').equals(0).toArray()
     ]);
     
-    return { products, lots, fields, applications, movements, applicationLots, containers, tancadas, tancadaFields };
+    return { products, lots, fields, movements, containers, tancadas, tancadaFields };
   },
 
   async clearAllData() {
@@ -215,9 +179,7 @@ export const dbHelpers = {
       db.products.clear(),
       db.lots.clear(),
       db.fields.clear(),
-      db.applications.clear(),
       db.movements.clear(),
-      db.applicationLots.clear(),
       db.containers.clear(),
       db.tancadas.clear(),
       db.tancadaFields.clear()

@@ -1,9 +1,9 @@
-import { useProducts, useFields, useApplications, useLots } from '../hooks/useData';
+import { useProducts, useFields, useTancadas, useLots } from '../hooks/useData';
 
 export default function DashboardPage() {
   const { products } = useProducts();
   const { fields } = useFields();
-  const { applications } = useApplications();
+  const { tancadas } = useTancadas();
   const { lots } = useLots();
 
   const stats = [
@@ -26,9 +26,9 @@ export default function DashboardPage() {
       color: 'var(--info)'
     },
     {
-      label: 'Aplicaciones',
-      value: applications.length,
-      icon: '🚜',
+      label: 'Tancadas',
+      value: tancadas.length,
+      icon: '🚿',
       color: 'var(--success)'
     }
   ];
@@ -42,8 +42,8 @@ export default function DashboardPage() {
     stockByType[typeName] = (stockByType[typeName] || 0) + totalStock;
   });
 
-  // Aplicaciones recientes
-  const recentApplications = applications.slice(0, 5);
+  // Tancadas recientes
+  const recentTancadas = tancadas.slice(0, 5);
 
   return (
     <div>
@@ -93,42 +93,32 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Recent Applications */}
+      {/* Recent Tancadas */}
       <div className="card">
         <div className="card-header">
-          <h3 className="card-title">Aplicaciones Recientes</h3>
+          <h3 className="card-title">Tancadas Recientes</h3>
         </div>
-        {recentApplications.length > 0 ? (
+        {recentTancadas.length > 0 ? (
           <div className="table-container">
             <table className="table">
               <thead>
                 <tr>
                   <th>Fecha</th>
-                  <th>Tipo</th>
-                  <th>Campo</th>
-                  <th>Dosis/Ha</th>
+                  <th>Capacidad Tanque</th>
+                  <th>Agua</th>
+                  <th>Notas</th>
                 </tr>
               </thead>
               <tbody>
-                {recentApplications.map(app => (
-                  <tr key={app.id}>
+                {recentTancadas.map(tancada => (
+                  <tr key={tancada.id}>
                     <td>{(() => {
-                        const [y, m, d] = app.date.split('T')[0].split('-');
+                        const [y, m, d] = tancada.date.split('T')[0].split('-');
                         return new Date(parseInt(y), parseInt(m) - 1, parseInt(d)).toLocaleDateString('es-AR');
                       })()}</td>
-                    <td>
-                      <span className={`badge ${app.type === 'FUMIGACION' ? 'badge-primary' : 'badge-secondary'}`}>
-                        {app.type}
-                      </span>
-                    </td>
-                    <td>{app.field?.name || 'Sin campo'}</td>
-                    <td>
-                      {app.applicationProducts?.map((ap, idx) => (
-                        <div key={idx}>
-                          {ap.product?.name}: {ap.quantityUsed} {ap.product?.baseUnit}
-                        </div>
-                      ))}
-                    </td>
+                    <td>{tancada.tankCapacity} L</td>
+                    <td>{tancada.waterAmount} L</td>
+                    <td>{tancada.notes || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -136,7 +126,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="empty-state">
-            <p>No hay aplicaciones registradas</p>
+            <p>No hay tancadas registradas</p>
           </div>
         )}
       </div>

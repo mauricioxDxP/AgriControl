@@ -1,12 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Field, Product, Tank, Lot } from '../../../types';
+import { Field, Product, Tank, Lot, TancadaType } from '../../../types';
 import { convertDoseToBaseUnit } from '../../../shared/utils/unitConversions';
 import ProductSelector from '../../../components/ProductSelector';
 
-type WizardStep = 'date-tank' | 'fields-hectares' | 'add-product' | 'products-list' | 'notes' | 'confirm';
+type WizardStep = 'type-date-tank' | 'fields-hectares' | 'add-product' | 'products-list' | 'notes' | 'confirm';
 
 interface WizardState {
   step: WizardStep;
+  type: TancadaType;
   date: string;
   tankId: string;
   tankCapacity: string;
@@ -29,6 +30,7 @@ interface TancadaWizardProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: {
+    type: TancadaType;
     date: string;
     tankCapacity: number;
     waterAmount: number;
@@ -45,7 +47,8 @@ interface TancadaWizardProps {
 
 export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fields, tanks, lots, editTancada }: TancadaWizardProps) {
   const initialState: WizardState = {
-    step: 'date-tank',
+    step: 'type-date-tank',
+    type: 'FUMIGACION',
     date: new Date().toISOString().split('T')[0],
     tankId: '',
     tankCapacity: '',
@@ -131,7 +134,8 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       });
       
       setWizardState({
-        step: 'date-tank',
+        step: 'type-date-tank',
+        type: (editTancada as any).type || 'FUMIGACION',
         date: dateStr,
         tankId: '',
         tankCapacity: tancada.tankCapacity.toString(),
@@ -163,7 +167,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   }, [lots, wizardState.selectedProductId]);
 
   const nextStep = () => {
-    const steps: WizardStep[] = ['date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'];
+    const steps: WizardStep[] = ['type-date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'];
     const currentIdx = steps.indexOf(wizardState.step);
     if (currentIdx < steps.length - 1) {
       setWizardState({ ...wizardState, step: steps[currentIdx + 1] });
@@ -175,7 +179,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   };
 
   const prevStep = () => {
-    const steps: WizardStep[] = ['date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'];
+    const steps: WizardStep[] = ['type-date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'];
     const currentIdx = steps.indexOf(wizardState.step);
     if (currentIdx > 0) {
       setWizardState({ ...wizardState, step: steps[currentIdx - 1] });
@@ -357,6 +361,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     }
     
     const tancadaData = {
+      type: wizardState.type,
       date: wizardState.date, // YYYY-MM-DD directo del input date
       tankCapacity: parseFloat(wizardState.tankCapacity),
       waterAmount: parseFloat(wizardState.waterAmount),
@@ -388,7 +393,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   if (!isOpen) return null;
 
   const stepTitle: Record<WizardStep, string> = {
-    'date-tank': '1. Fecha y Tanque',
+    'type-date-tank': '1. Tipo, Fecha y Tanque',
     'fields-hectares': '2. Campos y Hectáreas',
     'add-product': '3. Agregar Producto',
     'products-list': '3. Productos',
@@ -397,7 +402,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
   };
 
   const canGoNext = (): boolean => {
-    if (wizardState.step === 'date-tank') return !!wizardState.tankCapacity && !!wizardState.waterAmount;
+    if (wizardState.step === 'type-date-tank') return !!wizardState.tankCapacity && !!wizardState.waterAmount;
     if (wizardState.step === 'fields-hectares') return !!wizardState.totalHectares && wizardState.fields.length > 0;
     if (wizardState.step === 'add-product') return !!wizardState.selectedProductId && !!wizardState.currentQuantity;
     if (wizardState.step === 'products-list') return wizardState.products.length > 0;
@@ -418,22 +423,33 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
             {stepTitle[wizardState.step]}
           </div>
           <div style={{ display: 'flex', gap: '0.25rem', marginTop: '0.25rem' }}>
-            {['date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'].map((step, idx) => (
+            {['type-date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'].map((step, idx) => (
               <div key={step} style={{
                 flex: 1,
                 height: '4px',
                 borderRadius: '2px',
                 background: wizardState.step === step ? 'var(--primary)' : 
-                  (['date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'].indexOf(wizardState.step) > idx ? 'var(--primary)' : 'var(--gray-200)')
+                  (['type-date-tank', 'fields-hectares', 'add-product', 'products-list', 'notes', 'confirm'].indexOf(wizardState.step) > idx ? 'var(--primary)' : 'var(--gray-200)')
               }} />
             ))}
           </div>
         </div>
         
         <div className="modal-body" style={{ overflowY: 'auto' }}>
-          {/* Paso 1: Fecha y Tanque */}
-          {wizardState.step === 'date-tank' && (
+          {/* Paso 1: Tipo, Fecha y Tanque */}
+          {wizardState.step === 'type-date-tank' && (
             <div>
+              <div className="form-group">
+                <label className="form-label">Tipo</label>
+                <select
+                  className="form-select"
+                  value={wizardState.type}
+                  onChange={e => setWizardState({ ...wizardState, type: e.target.value as TancadaType })}
+                >
+                  <option value="FUMIGACION">Fumigación</option>
+                  <option value="SIEMBRA">Siembra</option>
+                </select>
+              </div>
               <div className="form-group">
                 <label className="form-label">Fecha</label>
                 <input type="date" className="form-input" value={wizardState.date} onChange={e => setWizardState({ ...wizardState, date: e.target.value })} />
@@ -782,7 +798,7 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
 
         <div className="modal-footer" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
           {/* Botón atrás */}
-          {wizardState.step !== 'date-tank' && wizardState.step !== 'add-product' && (
+          {wizardState.step !== 'type-date-tank' && wizardState.step !== 'add-product' && (
             <button type="button" className="btn btn-secondary" onClick={prevStep} style={{ flex: '1 1 auto' }}>← Atrás</button>
           )}
           

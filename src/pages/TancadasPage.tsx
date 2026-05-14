@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useTancadas, useProducts, useFields, useTanks, useLots } from '../hooks/useData';
 import { movementsService } from '../services';
-import { Tancada, CreateTancadaInput } from '../types';
+import { Tancada, CreateTancadaInput, TancadaType } from '../types';
 import TancadaWizard from '../features/tancadas/components/TancadaWizard';
 import { convertDoseToBaseUnit } from '../utils/unitConversions';
 import { getBaseUnitAbbr } from '../utils/units';
@@ -22,6 +22,7 @@ export default function TancadasPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
+    type: 'FUMIGACION' as TancadaType,
     date: new Date().toISOString().split('T')[0],
     tankCapacity: '',
     tankId: '',
@@ -54,6 +55,7 @@ export default function TancadasPage() {
   const [filterFieldIds, setFilterFieldIds] = useState<string[]>([]);
   const [filterDateFrom, setFilterDateFrom] = useState<string>('');
   const [filterDateTo, setFilterDateTo] = useState<string>('');
+  const [filterType, setFilterType] = useState<TancadaType | ''>('');
 
   // Wizard for mobile
   const [showWizard, setShowWizard] = useState(false);
@@ -91,6 +93,8 @@ export default function TancadasPage() {
       const toDate = new Date(filterDateTo);
       if (tancadaDate > toDate) return false;
     }
+    // Filtro por tipo
+    if (filterType && tancada.type !== filterType) return false;
     return true;
   });
   
@@ -208,6 +212,7 @@ export default function TancadasPage() {
 
   const resetForm = () => {
     setFormData({
+      type: 'FUMIGACION' as TancadaType,
       date: new Date().toISOString().split('T')[0],
       tankCapacity: '',
       tankId: '',
@@ -259,6 +264,7 @@ export default function TancadasPage() {
     } else {
       setEditingId(tancada.id);
       setFormData({
+        type: tancada.type,
         date: tancada.date.split('T')[0],
         tankCapacity: tancada.tankCapacity.toString(),
         tankId: '',
@@ -522,8 +528,8 @@ export default function TancadasPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const tancadaData = {
-      // Enviar date directo YYYY-MM-DD - el backend maneja la conversión a local
+    const tancadaData: CreateTancadaInput = {
+      type: formData.type,
       date: formData.date,
       tankCapacity: parseFloat(formData.tankCapacity),
       waterAmount: parseFloat(formData.waterAmount),
@@ -645,6 +651,17 @@ export default function TancadasPage() {
             onChange={setFilterFieldIds}
             placeholder="Filtrar por campo"
           />
+
+          <select
+            className="form-select"
+            style={{ width: 'auto' }}
+            value={filterType}
+            onChange={e => setFilterType(e.target.value as TancadaType | '')}
+          >
+            <option value="">Todos los tipos</option>
+            <option value="FUMIGACION">Fumigación</option>
+            <option value="SIEMBRA">Siembra</option>
+          </select>
           
           <input 
             type="date" 
@@ -666,10 +683,10 @@ export default function TancadasPage() {
             placeholder="Hasta"
           />
           
-          {(filterFieldIds.length > 0 || filterDateFrom || filterDateTo) && (
+          {(filterFieldIds.length > 0 || filterDateFrom || filterDateTo || filterType) && (
             <button 
               className="btn btn-secondary btn-sm"
-              onClick={() => { setFilterFieldIds([]); setFilterDateFrom(''); setFilterDateTo(''); }}
+              onClick={() => { setFilterFieldIds([]); setFilterDateFrom(''); setFilterDateTo(''); setFilterType(''); }}
             >
               ✕ Limpiar
             </button>
@@ -1019,6 +1036,19 @@ export default function TancadasPage() {
             <form onSubmit={handleSubmit}>
               <div className="modal-body">
                 <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Tipo</label>
+                    <select
+                      className="form-select"
+                      value={formData.type}
+                      onChange={e => setFormData({ ...formData, type: e.target.value as TancadaType })}
+                      required
+                    >
+                      <option value="FUMIGACION">Fumigación</option>
+                      <option value="SIEMBRA">Siembra</option>
+                    </select>
+                  </div>
+
                   <div className="form-group">
                     <label className="form-label">Fecha</label>
                     <input

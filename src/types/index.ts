@@ -3,12 +3,12 @@
 export type ProductType = 'SEMILLA' | 'FERTILIZANTE' | 'PESTICIDA' | 'HERBICIDA' | 'FUNGICIDA' | 'INSECTICIDA' | 'OTRO';
 export type ProductState = 'LIQUIDO' | 'SOLIDO' | 'POLVO' | 'GRANULADO' | 'GEL';
 export type BaseUnit = 'KG' | 'G' | 'L' | 'ML' | 'CC';
-export type ApplicationType = 'FUMIGACION' | 'SIEMBRA';
 export type MovementType = 'ENTRADA' | 'SALIDA';
 export type ContainerType = 'BIDON' | 'SACO' | 'BOLSA' | 'TAMBOR' | 'TANQUE' | 'OTRO';
 export type ContainerStatus = 'DISPONIBLE' | 'EN_USO' | 'VACIO';
 export type DoseType = 'PER_HECTARE' | 'CONCENTRATION';
 export type DoseUnit = 'BASE_UNIT' | 'CC' | 'ML' | 'G' | 'KG' | 'L';
+export type TancadaType = 'FUMIGACION' | 'SIEMBRA';
 
 // Interfaces for settings
 export interface ProductTypeModel {
@@ -127,45 +127,6 @@ export interface PlantedProductType {
   createdAt: string;
 }
 
-export interface ApplicationLot {
-  id: string;
-  applicationId: string;
-  lotId: string;
-  lot?: Lot;
-  quantityUsed: number;
-  createdAt: string;
-  synced: boolean;
-}
-
-export interface Application {
-  id: string;
-  fieldId: string;
-  field?: FieldLegacy;
-  type: ApplicationType;
-  date: string;
-  waterAmount?: number;
-  notes?: string;
-  applicationProducts?: ApplicationProduct[];
-  applicationLots?: ApplicationLot[];
-  createdAt: string;
-  updatedAt: string;
-  synced: boolean;
-}
-
-// Products used in an application
-export interface ApplicationProduct {
-  id: string;
-  applicationId: string;
-  productId: string;
-  product?: Product;
-  dosePerHectare?: number;
-  concentration?: number;
-  quantityUsed: number;
-  lotsUsed?: string;
-  createdAt: string;
-  synced: boolean;
-}
-
 export interface Movement {
   id: string;
   productId: string;
@@ -186,9 +147,7 @@ export interface SyncData {
   products?: Product[];
   lots?: Lot[];
   fields?: FieldLegacy[];
-  applications?: Application[];
   movements?: Movement[];
-  applicationLots?: ApplicationLot[];
 }
 
 // Dosage calculations
@@ -209,6 +168,7 @@ export interface NavItem {
 
 // Creation types
 export interface CreateTancadaInput {
+  type: TancadaType;
   date?: string;
   tankCapacity: number;
   waterAmount: number;
@@ -220,23 +180,6 @@ export interface CreateTancadaInput {
     lots?: { lotId: string; quantityUsed: number }[];
   }[];
   fields: { fieldId: string; hectaresTreated: number; productUsed: number }[];
-}
-
-export interface CreateApplicationInput {
-  fieldId: string;
-  type: ApplicationType;
-  date?: string;
-  waterAmount?: number;
-  notes?: string;
-  products?: { 
-    productId: string; 
-    dosePerHectare?: number; 
-    concentration?: number;
-    concentrationPerLiter?: number;
-    quantityUsed: number;
-    lots?: { lotId: string; quantityUsed: number }[];
-  }[];
-  lots?: { lotId: string; quantityUsed: number }[];
 }
 
 // Container (bidón, saco, bolsa, tambor)
@@ -271,6 +214,7 @@ export interface ContainerMovement {
 // Tancada (mix in tank for fumigation)
 export interface Tancada {
   id: string;
+  type: TancadaType;
   date: string;
   tankCapacity: number;
   waterAmount: number;

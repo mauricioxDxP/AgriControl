@@ -7,7 +7,6 @@ import { Field } from '../types';
 export { useProducts } from '../features/products/hooks';
 export { useLots } from '../features/lots/hooks';
 export { useFields } from '../features/fields/hooks';
-export { useApplications } from '../features/applications/hooks';
 export { useMovements } from '../features/movements/hooks';
 export { useTancadas } from '../features/tancadas/hooks';
 export { useTanks } from '../features/tanks/hooks';
@@ -70,11 +69,6 @@ export function useSync() {
           await dbHelpers.addField(f as Field);
         }
       }
-      if (result.serverData.applications) {
-        for (const a of result.serverData.applications) {
-          await dbHelpers.addApplication(a);
-        }
-      }
       if (result.serverData.movements) {
         for (const m of result.serverData.movements) {
           await dbHelpers.addMovement(m);
@@ -135,8 +129,6 @@ export function useDosageCalculation() {
 //   useProducts     → features/products/hooks
 //   useLots         → features/lots/hooks
 //   useFields       → features/fields/hooks
-//   useApplications → features/applications/hooks
-//   useContainers   → features/containers/hooks
 //   useMovements    → features/movements/hooks
 //   useTancadas     → features/tancadas/hooks
 //   useTanks        → features/tanks/hooks
