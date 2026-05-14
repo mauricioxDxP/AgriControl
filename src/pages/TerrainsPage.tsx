@@ -621,7 +621,7 @@ export default function TerrainsPage() {
                     latitude={terrainFormData.latitude}
                     longitude={terrainFormData.longitude}
                     onChange={handleTerrainMapChange}
-                    height="250px"
+                    height="300px"
                   />
                 </div>
               </div>
