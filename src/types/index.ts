@@ -173,6 +173,10 @@ export interface CreateTancadaInput {
   tankCapacity: number;
   waterAmount: number;
   notes?: string;
+  tancadaNumber?: number;
+  startTime?: string;
+  operatorId?: string;
+  machineryId?: string;
   products: { 
     productId: string; 
     concentration?: number; 
@@ -219,6 +223,12 @@ export interface Tancada {
   tankCapacity: number;
   waterAmount: number;
   notes?: string;
+  tancadaNumber?: number;
+  startTime?: string;
+  operatorId?: string;
+  machineryId?: string;
+  machinery?: Machinery;
+  operator?: Operator;
   createdAt: string;
   updatedAt: string;
   synced: boolean;
@@ -257,6 +267,24 @@ export interface Tank {
   id: string;
   name: string;
   capacity: number;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+}
+
+// Machinery (for use in tancadas)
+export interface Machinery {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  synced: boolean;
+}
+
+// Operator (for use in tancadas)
+export interface Operator {
+  id: string;
+  name: string;
   createdAt: string;
   updatedAt: string;
   synced: boolean;

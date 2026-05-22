@@ -13,7 +13,6 @@ const TancadasPage = lazy(() => import('./pages/TancadasPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ProductSettingsPage = lazy(() => import('./pages/ProductSettingsPage'));
 const OperationSettingsPage = lazy(() => import('./pages/OperationSettingsPage'));
-const FieldSettingsPage = lazy(() => import('./pages/FieldSettingsPage'));
 const ReportsPage = lazy(() => import('./pages/ReportsPage'));
 const InventoryCountPage = lazy(() => import('./pages/InventoryCountPage'));
 
@@ -70,7 +69,6 @@ function App() {
     { path: '/tanks', label: 'Tanques', icon: '🛢️', group: 'operaciones' },
     { path: '/tancadas', label: 'Tancadas', icon: '🚿', group: 'operaciones' },
     { path: '/settings/operations', label: 'Config. Operaciones', icon: '⚙️', group: 'operaciones' },
-    { path: '/settings/fields', label: 'Config. Siembras', icon: '🌱', group: 'operaciones' },
     // System
     { path: '/', label: 'Dashboard', icon: '📊', group: 'sistema' },
     { path: '/settings', label: 'Configuración', icon: '⚙️', group: 'sistema' },
@@ -119,13 +117,6 @@ function App() {
 
       <nav className={`nav-bar ${menuOpen ? 'open' : ''}`}>
         {/* Mobile close button - top right corner */}
-        <button 
-          className="nav-close-btn" 
-          onClick={() => setMenuOpen(false)}
-          aria-label="Cerrar menú"
-        >
-          ✕
-        </button>
         {/* Mobile: show all groups expanded */}
         <div className="nav-mobile-sections hide-desktop">
           {Object.entries(groupLabels).map(([groupKey, { label, icon }]) => (
@@ -204,7 +195,6 @@ function App() {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/products" element={<ProductSettingsPage />} />
             <Route path="/settings/operations" element={<OperationSettingsPage />} />
-            <Route path="/settings/fields" element={<FieldSettingsPage />} />
             <Route path="/inventory-count" element={<InventoryCountPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

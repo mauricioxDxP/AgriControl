@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Field, Product, Tank, Lot, TancadaType } from '../../../types';
+import { Field, Product, Tank, Lot, TancadaType, Machinery, Operator } from '../../../types';
 import { convertDoseToBaseUnit } from '../../../shared/utils/unitConversions';
 import ProductSelector from '../../../components/ProductSelector';
 
@@ -13,6 +13,10 @@ interface WizardState {
   tankCapacity: string;
   waterAmount: string;
   totalHectares: string;
+  tancadaNumber: string;
+  startTime: string;
+  operatorId: string;
+  machineryId: string;
   fields: { fieldId: string; hectares: string }[];
   products: { productId: string; concentration?: string; quantity: string; dosePerHectare?: string; concentrationPerLiter?: string; doseType?: string; lots: { lotId: string; quantityUsed: number }[] }[];
   notes: string;
@@ -35,6 +39,10 @@ interface TancadaWizardProps {
     tankCapacity: number;
     waterAmount: number;
     notes?: string;
+    tancadaNumber?: number;
+    startTime?: string;
+    operatorId?: string;
+    machineryId?: string;
     products: { productId: string; concentration?: number; quantity: number; lots: { lotId: string; quantityUsed: number }[] }[];
     fields: { fieldId: string; hectaresTreated: number; productUsed: number }[];
   }) => Promise<void>;
@@ -42,10 +50,12 @@ interface TancadaWizardProps {
   fields: Field[];
   tanks: Tank[];
   lots: Lot[];
+  machineries?: Machinery[];
+  operators?: Operator[];
   editTancada?: Record<string, unknown> | null;
 }
 
-export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fields, tanks, lots, editTancada }: TancadaWizardProps) {
+export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fields, tanks, lots, machineries = [], operators = [], editTancada }: TancadaWizardProps) {
   const initialState: WizardState = {
     step: 'type-date-tank',
     type: 'FUMIGACION',
@@ -54,6 +64,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
     tankCapacity: '',
     waterAmount: '',
     totalHectares: '',
+    tancadaNumber: '',
+    startTime: '',
+    operatorId: '',
+    machineryId: '',
     fields: [],
     products: [],
     notes: '',
@@ -102,6 +116,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         tankCapacity: number;
         waterAmount: number;
         notes?: string;
+        tancadaNumber?: number;
+        startTime?: string;
+        operatorId?: string;
+        machineryId?: string;
         tancadaFields?: { fieldId: string; hectaresTreated: number }[];
         tancadaProducts?: { productId: string; concentration?: number; quantity: number; lotsUsed?: string }[];
       };
@@ -141,6 +159,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
         tankCapacity: tancada.tankCapacity.toString(),
         waterAmount: tancada.waterAmount.toString(),
         totalHectares: (tancada.tancadaFields || []).reduce((sum, f) => sum + f.hectaresTreated, 0).toString(),
+        tancadaNumber: tancada.tancadaNumber?.toString() || '',
+        startTime: tancada.startTime || '',
+        operatorId: tancada.operatorId || '',
+        machineryId: tancada.machineryId || '',
         fields: wizardFields,
         products: wizardProducts,
         notes: tancada.notes || '',
@@ -366,6 +388,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
       tankCapacity: parseFloat(wizardState.tankCapacity),
       waterAmount: parseFloat(wizardState.waterAmount),
       notes: wizardState.notes || undefined,
+      tancadaNumber: wizardState.tancadaNumber ? parseInt(wizardState.tancadaNumber) : undefined,
+      startTime: wizardState.startTime || undefined,
+      operatorId: wizardState.operatorId || undefined,
+      machineryId: wizardState.machineryId || undefined,
       products: wizardState.products.map(p => ({
         productId: p.productId,
         concentration: p.concentration ? parseFloat(p.concentration) : undefined,
@@ -468,6 +494,34 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
               <div className="form-group">
                 <label className="form-label">Agua Total (L) *</label>
                 <input type="number" step="0.01" className="form-input" value={wizardState.waterAmount} onChange={e => setWizardState({ ...wizardState, waterAmount: e.target.value })} placeholder="Ej: 500" />
+              </div>
+            </div>
+          )}
+
+          {/* Campos opcionales - Nueva línea */}
+          {wizardState.step === 'type-date-tank' && (
+            <div>
+              <div className="form-group">
+                <label className="form-label">Número de Tancada</label>
+                <input type="number" step="1" className="form-input" value={wizardState.tancadaNumber} onChange={e => setWizardState({ ...wizardState, tancadaNumber: e.target.value })} placeholder="Ej: 5" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Hora de Inicio</label>
+                <input type="time" className="form-input" value={wizardState.startTime} onChange={e => setWizardState({ ...wizardState, startTime: e.target.value })} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nombre del Operador</label>
+                <select className="form-select" value={wizardState.operatorId} onChange={e => setWizardState({ ...wizardState, operatorId: e.target.value })}>
+                  <option value="">Sin operador</option>
+                  {operators.map(o => (<option key={o.id} value={o.id}>{o.name}</option>))}
+                </select>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Maquinaria</label>
+                <select className="form-select" value={wizardState.machineryId} onChange={e => setWizardState({ ...wizardState, machineryId: e.target.value })}>
+                  <option value="">Sin maquinaria</option>
+                  {machineries.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}
+                </select>
               </div>
             </div>
           )}
@@ -776,6 +830,10 @@ export default function TancadaWizard({ isOpen, onClose, onSubmit, products, fie
                 <p style={{ color: 'var(--gray-800)' }}><strong>Agua:</strong> {wizardState.waterAmount}L</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Tanque:</strong> {wizardState.tankCapacity}L</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Hectáreas:</strong> {wizardState.totalHectares} ha</p>
+                {wizardState.tancadaNumber && <p style={{ color: 'var(--gray-800)' }}><strong>Número:</strong> #{wizardState.tancadaNumber}</p>}
+                {wizardState.startTime && <p style={{ color: 'var(--gray-800)' }}><strong>Hora:</strong> {wizardState.startTime}</p>}
+                {wizardState.operatorId && <p style={{ color: 'var(--gray-800)' }}><strong>Operador:</strong> {operators.find(o => o.id === wizardState.operatorId)?.name || wizardState.operatorId}</p>}
+                {wizardState.machineryId && <p style={{ color: 'var(--gray-800)' }}><strong>Maquinaria:</strong> {machineries.find(m => m.id === wizardState.machineryId)?.name || wizardState.machineryId}</p>}
                 <p style={{ color: 'var(--gray-800)' }}><strong>Campos:</strong> {wizardState.fields.map(f => fields.find(field => field.id === f.fieldId)?.name).join(', ')}</p>
                 <p style={{ color: 'var(--gray-800)' }}><strong>Productos:</strong></p>
                 <ul style={{ marginLeft: '1rem', color: 'var(--gray-800)' }}>

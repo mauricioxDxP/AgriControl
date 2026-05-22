@@ -1,5 +1,5 @@
 import Dexie, { Table } from 'dexie';
-import { Product, Lot, Field, Movement, Container, Tancada, TancadaField, Tank, Terrain, Planting } from '../types';
+import { Product, Lot, Field, Movement, Container, Tancada, TancadaField, Tank, Terrain, Planting, Machinery, Operator } from '../types';
 
 // Use any for tables with circular references
 type AnyTable = Table<any>;
@@ -15,11 +15,13 @@ export class AgroControlDB extends Dexie {
   tanks!: Table<Tank>;
   terrains!: AnyTable;
   plantings!: AnyTable;
+  machineries!: Table<Machinery>;
+  operators!: Table<Operator>;
 
   constructor() {
     super('AgroControlDB');
     
-    this.version(9).stores({
+    this.version(11).stores({
       products: 'id, name, type, synced, updatedAt',
       lots: 'id, productId, synced, updatedAt',
       fields: 'id, name, synced, updatedAt',
@@ -29,7 +31,9 @@ export class AgroControlDB extends Dexie {
       tancadaFields: 'id, tancadaId, fieldId, synced',
       tanks: 'id, name, synced, updatedAt',
       terrains: 'id, name, synced, updatedAt',
-      plantings: 'id, fieldId, productId, startDate, synced, updatedAt'
+      plantings: 'id, fieldId, productId, startDate, synced, updatedAt',
+      machineries: 'id, name, synced, updatedAt',
+      operators: 'id, name, synced, updatedAt'
     });
   }
 }
@@ -288,5 +292,61 @@ export const dbHelpers = {
 
   async clearPlantings(): Promise<void> {
     await db.plantings.clear();
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Machinery helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getAllMachinery(): Promise<Machinery[]> {
+    return await db.machineries.toArray();
+  },
+
+  async getMachinery(id: string): Promise<Machinery | undefined> {
+    return await db.machineries.get(id);
+  },
+
+  async addMachinery(machinery: Machinery): Promise<string> {
+    return await db.machineries.put(machinery);
+  },
+
+  async updateMachinery(id: string, changes: Partial<Machinery>): Promise<number> {
+    return await db.machineries.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  },
+
+  async deleteMachinery(id: string): Promise<void> {
+    await db.machineries.delete(id);
+  },
+
+  async clearMachinery(): Promise<void> {
+    await db.machineries.clear();
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Operator helpers
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  async getAllOperators(): Promise<Operator[]> {
+    return await db.operators.toArray();
+  },
+
+  async getOperator(id: string): Promise<Operator | undefined> {
+    return await db.operators.get(id);
+  },
+
+  async addOperator(operator: Operator): Promise<string> {
+    return await db.operators.put(operator);
+  },
+
+  async updateOperator(id: string, changes: Partial<Operator>): Promise<number> {
+    return await db.operators.update(id, { ...changes, updatedAt: new Date().toISOString() });
+  },
+
+  async deleteOperator(id: string): Promise<void> {
+    await db.operators.delete(id);
+  },
+
+  async clearOperators(): Promise<void> {
+    await db.operators.clear();
   }
 };

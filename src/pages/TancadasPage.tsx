@@ -1,5 +1,7 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
 import { useTancadas, useProducts, useFields, useTanks, useLots } from '../hooks/useData';
+import { useMachinery } from '../features/machinery/hooks';
+import { useOperator } from '../features/operator/hooks';
 import { movementsService } from '../services';
 import { Tancada, CreateTancadaInput, TancadaType } from '../types';
 import TancadaWizard from '../features/tancadas/components/TancadaWizard';
@@ -15,6 +17,8 @@ export default function TancadasPage() {
   const { fields } = useFields();
   const { tanks } = useTanks();
   const { lots } = useLots();
+  const { machineries } = useMachinery();
+  const { operators } = useOperator();
   
   // Helper para obtener unidad abreviada
   const getUnit = (baseUnit: string | undefined) => baseUnit ? getBaseUnitAbbr(baseUnit) : '';
@@ -28,7 +32,11 @@ export default function TancadasPage() {
     tankId: '',
     waterAmount: '',
     notes: '',
-    totalHectares: ''  // Total hectares to treat
+    totalHectares: '',
+    tancadaNumber: '',
+    startTime: '',
+    operatorId: '',
+    machineryId: ''
   });
   
   // Multiple products in the mix, with lots per product
@@ -218,7 +226,11 @@ export default function TancadasPage() {
       tankId: '',
       waterAmount: '',
       notes: '',
-      totalHectares: ''
+      totalHectares: '',
+      tancadaNumber: '',
+      startTime: '',
+      operatorId: '',
+      machineryId: ''
     });
     setSelectedProducts([]);
     setFieldDistribution([]);
@@ -270,7 +282,11 @@ export default function TancadasPage() {
         tankId: '',
         waterAmount: tancada.waterAmount.toString(),
         notes: tancada.notes || '',
-        totalHectares: tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0).toString() || ''
+        totalHectares: tancada.tancadaFields?.reduce((sum, f) => sum + f.hectaresTreated, 0).toString() || '',
+        tancadaNumber: tancada.tancadaNumber?.toString() || '',
+        startTime: tancada.startTime || '',
+        operatorId: tancada.operatorId || '',
+        machineryId: tancada.machineryId || ''
       });
       
       // Load products
@@ -534,6 +550,10 @@ export default function TancadasPage() {
       tankCapacity: parseFloat(formData.tankCapacity),
       waterAmount: parseFloat(formData.waterAmount),
       notes: formData.notes || undefined,
+      tancadaNumber: formData.tancadaNumber ? parseInt(formData.tancadaNumber) : undefined,
+      startTime: formData.startTime || undefined,
+      operatorId: formData.operatorId || undefined,
+      machineryId: formData.machineryId || undefined,
       products: selectedProducts.map(p => ({
         productId: p.productId,
         concentration: p.concentration ? parseFloat(p.concentration) : undefined,
@@ -719,10 +739,11 @@ export default function TancadasPage() {
           <div className="mobile-cards">
             {filteredTancadas.map(tancada => (
               <div key={tancada.id} className="card-mobile">
-                <div className="card-mobile-header">
-                  <span className="card-mobile-date">{formatDate(tancada.date)}</span>
-                  <span className="card-mobile-badge">{tancada.tankCapacity}L</span>
-                </div>
+<div className="card-mobile-header">
+                   {tancada.tancadaNumber && <span className="card-mobile-badge" style={{ marginRight: '0.5rem' }}>#{tancada.tancadaNumber}</span>}
+                   <span className="card-mobile-date">{formatDate(tancada.date)}{tancada.startTime && ` ${tancada.startTime}`}</span>
+                   <span className="card-mobile-badge">{tancada.tankCapacity}L</span>
+                 </div>
                 
                 <div className="card-mobile-content">
                   <div className="card-mobile-section">
@@ -871,16 +892,17 @@ export default function TancadasPage() {
                       checked={selectedForPrint.length === filteredTancadas.length && filteredTancadas.length > 0}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedForPrint(filteredTancadas.slice(0, 2).map(t => t.id));
+                          setSelectedForPrint(filteredTancadas.map(t => t.id));
                         } else {
                           setSelectedForPrint([]);
                         }
                       }}
-                      title={selectedForPrint.length >= 2 ? 'Máximo 2 para imprimir' : 'Seleccionar hasta 2'}
-                      disabled={selectedForPrint.length >= 2 && selectedForPrint.length !== filteredTancadas.length}
+                      title={selectedForPrint.length > 0 ? `${selectedForPrint.length} seleccionadas` : 'Seleccionar todas'}
                     />
                   </th>
+                  <th>Nro</th>
                   <th>Fecha</th>
+                  <th>Hora</th>
                   <th>Tanques</th>
                   <th>Productos</th>
                   <th className="hide-mobile">Agua</th>
@@ -900,14 +922,19 @@ export default function TancadasPage() {
                           onChange={() => {
                             if (selectedForPrint.includes(tancada.id)) {
                               setSelectedForPrint(selectedForPrint.filter(id => id !== tancada.id));
-                            } else if (selectedForPrint.length < 2) {
+                            } else {
                               setSelectedForPrint([...selectedForPrint, tancada.id]);
                             }
                           }}
-                          disabled={!selectedForPrint.includes(tancada.id) && selectedForPrint.length >= 2}
                         />
                       </td>
+                      <td style={{ fontWeight: 'bold' }}>
+                        {tancada.tancadaNumber ? `#${tancada.tancadaNumber}` : '-'}
+                      </td>
                       <td>{formatDate(tancada.date)}</td>
+                      <td style={{ color: 'var(--gray-600)' }}>
+                        {tancada.startTime || '-'}
+                      </td>
                       <td>{tancada.tankCapacity} L</td>
                       <td>
                         {tancada.tancadaProducts?.map((tp, idx) => (
@@ -1102,6 +1129,59 @@ export default function TancadasPage() {
                       required
                       placeholder="Ej: 500"
                     />
+                  </div>
+                </div>
+
+                {/* Campos opcionales - Nueva línea */}
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Número de Tancada</label>
+                    <input
+                      type="number"
+                      step="1"
+                      className="form-input"
+                      value={formData.tancadaNumber}
+                      onChange={e => setFormData({ ...formData, tancadaNumber: e.target.value })}
+                      placeholder="Ej: 5"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Hora de Inicio</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      value={formData.startTime}
+                      onChange={e => setFormData({ ...formData, startTime: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Nombre del Operador</label>
+                    <select
+                      className="form-select"
+                      value={formData.operatorId}
+                      onChange={e => setFormData({ ...formData, operatorId: e.target.value })}
+                    >
+                      <option value="">Sin operador</option>
+                      {operators.map(o => (
+                        <option key={o.id} value={o.id}>{o.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Maquinaria</label>
+                    <select
+                      className="form-select"
+                      value={formData.machineryId}
+                      onChange={e => setFormData({ ...formData, machineryId: e.target.value })}
+                    >
+                      <option value="">Sin maquinaria</option>
+                      {machineries.map(m => (
+                        <option key={m.id} value={m.id}>{m.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -1596,6 +1676,8 @@ export default function TancadasPage() {
         fields={fields}
         tanks={tanks}
         lots={lots}
+        machineries={machineries}
+        operators={operators}
         editTancada={editingTancada as Record<string, unknown> | null | undefined}
       />
     </div>
